@@ -289,9 +289,12 @@ export default function Home() {
       <header className="sticky top-0 z-40 w-full glass-panel border-b border-white/5 py-4 px-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group" onClick={playAudioClickFeedback}>
-            <div className="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/35 flex items-center justify-center group-hover:border-amber-500 transition">
-              <span className="text-xs font-bold text-amber-500 font-mono">T</span>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src="/logo.jpg" 
+              alt="Taj Tyre Work Logo" 
+              className="w-8 h-8 rounded-full object-cover border border-amber-500/35 group-hover:border-amber-500 transition shrink-0" 
+            />
             <div>
               <span className="font-bold text-sm tracking-widest text-white block group-hover:text-amber-500 transition">
                 TAJ TYRE WORK

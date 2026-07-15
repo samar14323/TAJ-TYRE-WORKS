@@ -1,0 +1,423 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  Owner
+  Customer
+  Employee
+  Dealer
+}
+
+enum VehicleFuelType {
+  Petrol
+  Diesel
+  Electric
+  Hybrid
+  CNG
+}
+
+enum AppointmentStatus {
+  Pending
+  In_Progress
+  Completed
+  Cancelled
+}
+
+enum ServiceType {
+  Fitting
+  Alignment
+  Balancing
+  Nitrogen
+}
+
+enum TyreCategory {
+  Car_Tyres
+  Bike_Tyres
+  Truck_Tyres
+  Tractor_Tyres
+  Tubes
+  Wheels
+  Accessories
+  Batteries
+  Nitrogen_Services
+  Wheel_Alignment
+  Wheel_Balancing
+}
+
+
+enum PaymentStatus {
+  Paid
+  Pending
+  Overdue
+}
+
+enum OrderStatus {
+  Draft
+  Sent
+  Received
+  Cancelled
+}
+
+enum PaymentMethod {
+  Cash
+  UPI
+  Card
+  Credit
+}
+
+enum JobStatus {
+  Waiting
+  In_Progress
+  Quality_Check
+  Completed
+}
+
+enum TimelineStep {
+  Vehicle_Arrived
+  Inspection
+  Tyre_Installed
+  Alignment
+  Quality_Check
+  Payment
+  Delivered
+}
+
+enum ExpenseCategory {
+  Salary
+  Rent
+  Electricity
+  Tea
+  Transport
+  Internet
+  Maintenance
+  Other
+}
+
+enum StockMovementType {
+  Inward
+  Outward
+  Adjustment
+}
+
+model Owner {
+  id           String         @id @default(uuid())
+  username     String         @unique
+  password     String         // Hashed bcrypt password
+  name         String
+  createdAt    DateTime       @default(now())
+  AuditLog     AuditLog[]
+  Notification Notification[]
+}
+
+model Employee {
+  id           String         @id @default(uuid())
+  username     String         @unique
+  password     String         // Hashed bcrypt password
+  name         String
+  role         String         // e.g. "Mechanic", "Receptionist"
+  createdAt    DateTime       @default(now())
+  AuditLog     AuditLog[]
+  Notification Notification[]
+}
+
+model Dealer {
+  id           String         @id @default(uuid())
+  username     String         @unique
+  password     String         // Hashed bcrypt password
+  name         String
+  createdAt    DateTime       @default(now())
+  AuditLog     AuditLog[]
+  Notification Notification[]
+}
+
+model Customer {
+  id                String         @id @default(uuid())
+  name              String
+  phone             String         @unique
+  visits            Int            @default(0)
+  purchasesCount    Int            @default(0)
+  totalSpent        Float          @default(0.0)
+  trustLevel        String         @default("Bronze") // Bronze, Silver, Gold, Platinum
+  savings           Float          @default(0.0)
+  notes             String?
+  rewardPoints      Int            @default(0)
+  outstandingAmount Float          @default(0.0)
+  favoriteBrand     String?
+  averageBill       Float          @default(0.0)
+  address           String?
+  city              String?
+  createdAt         DateTime       @default(now())
+  vehicles          Vehicle[]
+  appointments      Appointment[]
+  invoices          Invoice[]
+  jobCards          JobCard[]
+  Notification      Notification[]
+}
+
+model Vehicle {
+  id              String          @id @default(uuid())
+  brand           String
+  model           String
+  year            Int
+  fuelType        VehicleFuelType
+  plateNumber     String          @unique
+  tyreInstalled   String?
+  installDate     DateTime?
+  mileage         Int             @default(0)
+  warrantyExpiry  DateTime?
+  nextReplacement DateTime?
+  customerId      String
+  customer        Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt       DateTime        @default(now())
+}
+
+model Appointment {
+  id            String            @id @default(uuid())
+  vehicleNumber String
+  serviceType   ServiceType
+  date          DateTime          // Date of appointment
+  timeSlot      String
+  status        AppointmentStatus @default(Pending)
+  mechanicName  String?
+  timeTaken     Int?
+  beforePhoto   String?
+  afterPhoto    String?
+  customerId    String
+  customer      Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime          @default(now())
+}
+
+model Tyre {
+  id            String          @id @default(uuid())
+  brand         String
+  name          String
+  category      TyreCategory
+  size          String
+  mrp           Float
+  purchasePrice Float
+  sellingPrice  Float
+  quantity      Int             @default(0)
+  location      String
+  imageUrl      String?
+  barcode       String          @unique
+  qrCode        String
+  description   String?
+  warranty      String?
+  dateAdded     DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+  supplierId    String
+  supplier      Supplier        @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  InvoiceItem   InvoiceItem[]
+  StockMovement StockMovement[]
+}
+
+model Supplier {
+  id                 String          @id @default(uuid())
+  name               String          @unique
+  contactPerson      String
+  phone              String
+  email              String
+  stockSupplied      Int             @default(0)
+  paymentStatus      PaymentStatus   @default(Paid)
+  pendingAmount      Float           @default(0.0)
+  rating             Int             @default(5)
+  avgDeliveryTime    String          @default("2 Days")
+  pendingOrdersCount Int             @default(0)
+  lastPurchaseDate   DateTime?
+  outstandingBalance Float           @default(0.0)
+  createdAt          DateTime        @default(now())
+  purchaseOrders     PurchaseOrder[]
+  tyres              Tyre[]
+}
+
+model PurchaseOrder {
+  id           String              @id @default(uuid())
+  poNumber     String              @unique // PO-2026-001
+  date         DateTime
+  totalAmount  Float
+  status       OrderStatus         @default(Draft)
+  supplierId   String
+  supplier     Supplier            @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  items        PurchaseOrderItem[]
+  createdAt    DateTime            @default(now())
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  name            String
+  brand           String
+  size            String
+  quantity        Int
+  unitCost        Float
+  total           Float
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id                String        @id @default(uuid())
+  invoiceNumber     String        @unique // TTW-2026-001
+  date              DateTime
+  subTotal          Float
+  gstAmount         Float
+  discountApplied   Float
+  netTotal          Float
+  ownerSignature    String
+  customerSignature String
+  gstin             String?
+  jobCardId         String?       @unique
+  customerId        String
+  customer          Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items             InvoiceItem[]
+  payments          Payment[]
+  jobCard           JobCard?      @relation(fields: [jobCardId], references: [id])
+  createdAt         DateTime      @default(now())
+}
+
+model InvoiceItem {
+  id        String  @id @default(uuid())
+  tyreId    String
+  name      String
+  brand     String
+  quantity  Int
+  price     Float
+  hsnCode   String
+  gstRate   Float
+  total     Float
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  tyre      Tyre    @relation(fields: [tyreId], references: [id])
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  amount        Float
+  method        PaymentMethod
+  status        String        @default("Completed") // Completed, Pending
+  transactionId String?
+  invoiceId     String
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+}
+
+model JobCard {
+  id                String       @id @default(uuid())
+  jobId             String       @unique // e.g. #TTW-2026-00152
+  vehicleModel      String
+  vehicleNumber     String
+  services          String[]     // string array mapping
+  mechanic          String
+  bay               String       // Bay 1, Bay 2, etc.
+  status            JobStatus    @default(Waiting)
+  estimatedFinish   String
+  beforePhoto       String?
+  afterPhoto        String?
+  damagePhoto       String?
+  customerSignature String?
+  ownerSignature    String?
+  odometerReading   Int          @default(0)
+  customerId        String
+  customer          Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  timeline          Timeline[]
+  invoice           Invoice?
+  createdAt         DateTime     @default(now())
+}
+
+model Timeline {
+  id        String       @id @default(uuid())
+  step      TimelineStep
+  timestamp DateTime
+  completed Boolean      @default(false)
+  jobCardId String
+  jobCard   JobCard      @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  date        DateTime
+  category    ExpenseCategory
+  amount      Float
+  description String
+  createdAt   DateTime        @default(now())
+}
+
+model Notification {
+  id         String    @id @default(uuid())
+  role       Role
+  title      String
+  message    String
+  date       DateTime
+  read       Boolean   @default(false)
+  customerId String?
+  ownerId    String?
+  employeeId String?
+  dealerId   String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  owner      Owner?    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dealer     Dealer?   @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+}
+
+model Otp {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Session {
+  id             String   @id @default(uuid())
+  userId         String
+  userRole       Role
+  userName       String
+  userIdentifier String
+  lastActive     DateTime
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+}
+
+model AuditLog {
+  id         String    @id @default(uuid())
+  action     String    // e.g. "CREATE_INVOICE", "DELETE_TYRE"
+  entity     String    // e.g. "Invoice", "Tyre"
+  entityId   String?
+  oldValue   String?
+  newValue   String?
+  ownerId    String?
+  employeeId String?
+  dealerId   String?
+  owner      Owner?    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  employee   Employee? @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  dealer     Dealer?   @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+}
+
+model StockMovement {
+  id          String            @id @default(uuid())
+  quantity    Int
+  type        StockMovementType
+  reference   String?           // PO number or Invoice number
+  description String?
+  userId      String?
+  tyreId      String
+  tyre        Tyre              @relation(fields: [tyreId], references: [id], onDelete: Cascade)
+  createdAt   DateTime          @default(now())
+}
+
+model Settings {
+  id    String @id @default("global-settings")
+  key   String @unique
+  value String
+}

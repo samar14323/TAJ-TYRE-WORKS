@@ -6,7 +6,18 @@ export interface Tyre {
   id: string;
   brand: string;
   name: string;
-  category: "Car" | "SUV" | "Truck" | "Tractor" | "Bike";
+  category: 
+    | "Car Tyres"
+    | "Bike Tyres"
+    | "Truck Tyres"
+    | "Tractor Tyres"
+    | "Tubes"
+    | "Wheels"
+    | "Accessories"
+    | "Batteries"
+    | "Nitrogen Services"
+    | "Wheel Alignment"
+    | "Wheel Balancing";
   size: string;
   mrp: number;
   purchasePrice: number;
@@ -17,7 +28,11 @@ export interface Tyre {
   dateAdded: string;
   barcode: string;
   qrCode: string;
+  description?: string;
+  warranty?: string;
+  imageUrl?: string;
 }
+
 
 export interface Vehicle {
   id: string;
@@ -182,13 +197,14 @@ export interface Notification {
 
 // Initial Mock Seed Data
 const initialTyres: Tyre[] = [
-  { id: "t-1", brand: "Apollo", name: "Alnac 4G", category: "Car", size: "185/65 R15", mrp: 4200, purchasePrice: 2900, sellingPrice: 3850, quantity: 18, location: "Shelf A3", supplier: "Apex Distributors", dateAdded: "2026-04-10", barcode: "8901234001", qrCode: "qr-8901234001" },
-  { id: "t-2", brand: "MRF", name: "Wanderer A/T", category: "SUV", size: "235/70 R16", mrp: 8100, purchasePrice: 5500, sellingPrice: 7200, quantity: 3, location: "Shelf B1", supplier: "MRF Regional Hub", dateAdded: "2026-05-12", barcode: "8901234002", qrCode: "qr-8901234002" },
-  { id: "t-3", brand: "CEAT", name: "SecuraDrive", category: "Car", size: "195/55 R16", mrp: 4900, purchasePrice: 3300, sellingPrice: 4300, quantity: 14, location: "Shelf A5", supplier: "Shree Ji Tyres", dateAdded: "2026-05-20", barcode: "8901234003", qrCode: "qr-8901234003" },
-  { id: "t-4", brand: "Michelin", name: "Primacy 4 ST", category: "Car", size: "195/55 R16", mrp: 9800, purchasePrice: 7200, sellingPrice: 9100, quantity: 8, location: "Premium Section", supplier: "Michelin Imports India", dateAdded: "2026-06-02", barcode: "8901234004", qrCode: "qr-8901234004" },
-  { id: "t-5", brand: "JK", name: "Jet Steel JDH5", category: "Truck", size: "10.00 R20", mrp: 21000, purchasePrice: 15500, sellingPrice: 18500, quantity: 24, location: "Heavy Stacks C", supplier: "JK Tyre Depot", dateAdded: "2026-03-15", barcode: "8901234005", qrCode: "qr-8901234005" },
-  { id: "t-6", brand: "Bridgestone", name: "Sturdo", category: "Car", size: "185/65 R15", mrp: 6200, purchasePrice: 4500, sellingPrice: 5600, quantity: 11, location: "Shelf A1", supplier: "Bridgestone North", dateAdded: "2026-06-10", barcode: "8901234006", qrCode: "qr-8901234006" }
+  { id: "t-1", brand: "Apollo", name: "Alnac 4G", category: "Car Tyres", size: "185/65 R15", mrp: 4200, purchasePrice: 2900, sellingPrice: 3850, quantity: 18, location: "Shelf A3", supplier: "Apex Distributors", dateAdded: "2026-04-10", barcode: "8901234001", qrCode: "qr-8901234001" },
+  { id: "t-2", brand: "MRF", name: "Wanderer A/T", category: "Car Tyres", size: "235/70 R16", mrp: 8100, purchasePrice: 5500, sellingPrice: 7200, quantity: 3, location: "Shelf B1", supplier: "MRF Regional Hub", dateAdded: "2026-05-12", barcode: "8901234002", qrCode: "qr-8901234002" },
+  { id: "t-3", brand: "CEAT", name: "SecuraDrive", category: "Car Tyres", size: "195/55 R16", mrp: 4900, purchasePrice: 3300, sellingPrice: 4300, quantity: 14, location: "Shelf A5", supplier: "Shree Ji Tyres", dateAdded: "2026-05-20", barcode: "8901234003", qrCode: "qr-8901234003" },
+  { id: "t-4", brand: "Michelin", name: "Primacy 4 ST", category: "Car Tyres", size: "195/55 R16", mrp: 9800, purchasePrice: 7200, sellingPrice: 9100, quantity: 8, location: "Premium Section", supplier: "Michelin Imports India", dateAdded: "2026-06-02", barcode: "8901234004", qrCode: "qr-8901234004" },
+  { id: "t-5", brand: "JK", name: "Jet Steel JDH5", category: "Truck Tyres", size: "10.00 R20", mrp: 21000, purchasePrice: 15500, sellingPrice: 18500, quantity: 24, location: "Heavy Stacks C", supplier: "JK Tyre Depot", dateAdded: "2026-03-15", barcode: "8901234005", qrCode: "qr-8901234005" },
+  { id: "t-6", brand: "Bridgestone", name: "Sturdo", category: "Car Tyres", size: "185/65 R15", mrp: 6200, purchasePrice: 4500, sellingPrice: 5600, quantity: 11, location: "Shelf A1", supplier: "Bridgestone North", dateAdded: "2026-06-10", barcode: "8901234006", qrCode: "qr-8901234006" }
 ];
+
 
 const initialCustomers: Customer[] = [
   {
@@ -357,6 +373,50 @@ const initialNotifications: Notification[] = [
 ];
 
 class LocalDB {
+  private isBatchSyncing = false;
+
+  private syncAction(action: string, data: any): void {
+    if (this.isBatchSyncing) return;
+    if (typeof window !== "undefined") {
+      fetch("/api/store", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action, data }),
+      }).catch((err) => {
+        console.error(`Failed to sync action ${action} to Neon:`, err);
+      });
+    }
+  }
+
+  async syncWithServer(): Promise<void> {
+    try {
+      const res = await fetch("/api/store");
+      const json = await res.json();
+      if (json.success && json.data) {
+        this.isBatchSyncing = true;
+        try {
+          const d = json.data;
+          if (d.tyres && d.tyres.length > 0) this.saveTyres(d.tyres);
+          if (d.customers && d.customers.length > 0) this.saveCustomers(d.customers);
+          if (d.jobCards && d.jobCards.length > 0) this.saveJobCards(d.jobCards);
+          if (d.invoices && d.invoices.length > 0) this.saveInvoices(d.invoices);
+          if (d.expenses && d.expenses.length > 0) this.saveExpenses(d.expenses);
+          if (d.suppliers && d.suppliers.length > 0) this.saveSuppliers(d.suppliers);
+          if (d.purchaseOrders && d.purchaseOrders.length > 0) this.savePurchaseOrders(d.purchaseOrders);
+          if (d.notifications && d.notifications.length > 0) this.saveNotifications(d.notifications);
+          if (d.appointments && d.appointments.length > 0) this.saveAppointments(d.appointments);
+        } finally {
+          this.isBatchSyncing = false;
+        }
+        console.log("Database successfully synchronized with Neon PostgreSQL.");
+      }
+    } catch (e) {
+      console.error("Failed to sync with server:", e);
+    }
+  }
+
   private getStorageItem<T>(key: string, defaultValue: T): T {
     if (typeof window === "undefined") return defaultValue;
     const item = localStorage.getItem(key);
@@ -379,180 +439,253 @@ class LocalDB {
   getPurchaseOrders(): PurchaseOrder[] { return this.getStorageItem("ttw_po_v4", initialPurchaseOrders); }
   getNotifications(): Notification[] { return this.getStorageItem("ttw_notifications_v4", initialNotifications); }
   getAppointments(): Appointment[] { 
-    // Convert JobCards to Appointments visually if needed or get them separately
     return this.getStorageItem("ttw_appointments_v4", []);
   }
 
   // Setters
-  saveTyres(val: Tyre[]): void { this.setStorageItem("ttw_tyres_v4", val); }
-  saveCustomers(val: Customer[]): void { this.setStorageItem("ttw_customers_v4", val); }
-  saveJobCards(val: JobCard[]): void { this.setStorageItem("ttw_jobcards_v4", val); }
-  saveInvoices(val: Invoice[]): void { this.setStorageItem("ttw_invoices_v4", val); }
-  saveExpenses(val: Expense[]): void { this.setStorageItem("ttw_expenses_v4", val); }
-  saveSuppliers(val: Supplier[]): void { this.setStorageItem("ttw_suppliers_v4", val); }
-  savePurchaseOrders(val: PurchaseOrder[]): void { this.setStorageItem("ttw_po_v4", val); }
-  saveNotifications(val: Notification[]): void { this.setStorageItem("ttw_notifications_v4", val); }
-  saveAppointments(val: Appointment[]): void { this.setStorageItem("ttw_appointments_v4", val); }
+  saveTyres(val: Tyre[]): void { 
+    this.setStorageItem("ttw_tyres_v4", val); 
+    this.syncAction("saveTyres", val);
+  }
+  saveCustomers(val: Customer[]): void { 
+    this.setStorageItem("ttw_customers_v4", val); 
+    this.syncAction("saveCustomers", val);
+  }
+  saveJobCards(val: JobCard[]): void { 
+    this.setStorageItem("ttw_jobcards_v4", val); 
+    this.syncAction("saveJobCards", val);
+  }
+  saveInvoices(val: Invoice[]): void { 
+    this.setStorageItem("ttw_invoices_v4", val); 
+  }
+  saveExpenses(val: Expense[]): void { 
+    this.setStorageItem("ttw_expenses_v4", val); 
+    this.syncAction("saveExpenses", val);
+  }
+  saveSuppliers(val: Supplier[]): void { 
+    this.setStorageItem("ttw_suppliers_v4", val); 
+    this.syncAction("saveSuppliers", val);
+  }
+  savePurchaseOrders(val: PurchaseOrder[]): void { 
+    this.setStorageItem("ttw_po_v4", val); 
+    this.syncAction("savePurchaseOrders", val);
+  }
+  saveNotifications(val: Notification[]): void { 
+    this.setStorageItem("ttw_notifications_v4", val); 
+    this.syncAction("saveNotifications", val);
+  }
+  saveAppointments(val: Appointment[]): void { 
+    this.setStorageItem("ttw_appointments_v4", val); 
+    this.syncAction("saveAppointments", val);
+  }
 
   // Core Actions
   addJobCard(job: JobCard): void {
-    const list = this.getJobCards();
-    list.unshift(job);
-    this.saveJobCards(list);
+    this.isBatchSyncing = true;
+    try {
+      const list = this.getJobCards();
+      list.unshift(job);
+      this.saveJobCards(list);
 
-    // Auto notify
-    this.addNotification({
-      id: `n-${Date.now()}`,
-      role: "Owner",
-      title: "New Job Card Registered",
-      message: `Job ${job.jobId} created for ${job.customerName} - ${job.vehicleModel} (${job.vehicleNumber})`,
-      date: new Date().toISOString().split("T")[0],
-      read: false
-    });
+      // Auto notify
+      this.addNotification({
+        id: `n-${Date.now()}`,
+        role: "Owner",
+        title: "New Job Card Registered",
+        message: `Job ${job.jobId} created for ${job.customerName} - ${job.vehicleModel} (${job.vehicleNumber})`,
+        date: new Date().toISOString().split("T")[0],
+        read: false
+      });
+    } finally {
+      this.isBatchSyncing = false;
+    }
+    this.syncAction("addJobCard", job);
   }
 
   addAppointment(apt: Appointment): void {
-    const list = this.getAppointments();
-    list.unshift(apt);
-    this.saveAppointments(list);
+    this.isBatchSyncing = true;
+    try {
+      const list = this.getAppointments();
+      list.unshift(apt);
+      this.saveAppointments(list);
+    } finally {
+      this.isBatchSyncing = false;
+    }
+    this.syncAction("addAppointment", apt);
   }
 
   addInvoice(invoice: Invoice): void {
-    const invoices = this.getInvoices();
-    invoices.unshift(invoice);
-    this.saveInvoices(invoices);
+    this.isBatchSyncing = true;
+    try {
+      const invoices = this.getInvoices();
+      invoices.unshift(invoice);
+      this.saveInvoices(invoices);
 
-    // 1. Decrement tyre inventory
-    const tyres = this.getTyres();
-    invoice.items.forEach((item) => {
-      const tyre = tyres.find((t) => t.id === item.tyreId);
-      if (tyre) {
-        tyre.quantity = Math.max(0, tyre.quantity - item.quantity);
-        if (tyre.quantity < 5) {
-          this.addNotification({
-            id: `n-low-${Date.now()}-${Math.random()}`,
-            role: "Owner",
-            title: "Low Stock Alert",
-            message: `${tyre.brand} ${tyre.name} is low: ${tyre.quantity} left.`,
-            date: invoice.date,
-            read: false
-          });
+      // 1. Decrement tyre inventory
+      const tyres = this.getTyres();
+      invoice.items.forEach((item) => {
+        const tyre = tyres.find((t) => t.id === item.tyreId);
+        if (tyre) {
+          tyre.quantity = Math.max(0, tyre.quantity - item.quantity);
+          if (tyre.quantity < 5) {
+            this.addNotification({
+              id: `n-low-${Date.now()}-${Math.random()}`,
+              role: "Owner",
+              title: "Low Stock Alert",
+              message: `${tyre.brand} ${tyre.name} is low: ${tyre.quantity} left.`,
+              date: invoice.date,
+              read: false
+            });
+          }
         }
-      }
-    });
-    this.saveTyres(tyres);
+      });
+      this.saveTyres(tyres);
 
-    // 2. Update Customer details
-    const customers = this.getCustomers();
-    const customer = customers.find((c) => c.id === invoice.customerId || c.phone === invoice.customerPhone);
-    if (customer) {
-      customer.purchasesCount += invoice.items.length;
-      customer.totalSpent += invoice.netTotal;
-      customer.savings += invoice.discountApplied;
-      
-      // Points calculations (e.g. 5% of netTotal as reward points!)
-      const pointsEarned = Math.floor(invoice.netTotal * 0.05);
-      customer.rewardPoints = (customer.rewardPoints ?? 0) + pointsEarned;
-      
-      // Update favorites and metrics
-      customer.averageBill = Math.floor(customer.totalSpent / customer.purchasesCount);
-      if (invoice.items.length > 0) {
-        customer.favoriteBrand = invoice.items[0].brand;
-      }
+      // 2. Update Customer details
+      const customers = this.getCustomers();
+      const customer = customers.find((c) => c.id === invoice.customerId || c.phone === invoice.customerPhone);
+      if (customer) {
+        customer.purchasesCount += invoice.items.length;
+        customer.totalSpent += invoice.netTotal;
+        customer.savings += invoice.discountApplied;
+        
+        const pointsEarned = Math.floor(invoice.netTotal * 0.05);
+        customer.rewardPoints = (customer.rewardPoints ?? 0) + pointsEarned;
+        
+        customer.averageBill = Math.floor(customer.totalSpent / customer.purchasesCount);
+        if (invoice.items.length > 0) {
+          customer.favoriteBrand = invoice.items[0].brand;
+        }
 
-      // Update vehicle tyres in profile if tyre changes
-      invoice.items.forEach(item => {
-        if (item.hsnCode === "4011") {
-          customer.vehicles.forEach(veh => {
-            if (invoice.jobCardId) {
-              const jc = this.getJobCards().find(j => j.id === invoice.jobCardId);
-              if (jc && jc.vehicleNumber === veh.plateNumber) {
+        invoice.items.forEach(item => {
+          if (item.hsnCode === "4011") {
+            customer.vehicles.forEach(veh => {
+              if (invoice.jobCardId) {
+                const jc = this.getJobCards().find(j => j.id === invoice.jobCardId);
+                if (jc && jc.vehicleNumber === veh.plateNumber) {
+                  veh.tyreInstalled = `${item.brand} ${item.name}`;
+                  veh.installDate = invoice.date;
+                }
+              } else {
                 veh.tyreInstalled = `${item.brand} ${item.name}`;
                 veh.installDate = invoice.date;
               }
-            } else {
-              // Fallback fallback to first vehicle
-              veh.tyreInstalled = `${item.brand} ${item.name}`;
-              veh.installDate = invoice.date;
-            }
-          });
+            });
+          }
+        });
+
+        if (invoice.paymentMethod === "Credit") {
+          customer.outstandingAmount = (customer.outstandingAmount ?? 0) + invoice.netTotal;
         }
-      });
 
-      // Credit outstanding tracking
-      if (invoice.paymentMethod === "Credit") {
-        customer.outstandingAmount = (customer.outstandingAmount ?? 0) + invoice.netTotal;
+        if (customer.totalSpent > 50000) customer.trustLevel = "Platinum";
+        else if (customer.totalSpent > 25000) customer.trustLevel = "Gold";
+        else if (customer.totalSpent > 10000) customer.trustLevel = "Silver";
+
+        this.saveCustomers(customers);
       }
-
-      // Tier upgrades
-      if (customer.totalSpent > 50000) customer.trustLevel = "Platinum";
-      else if (customer.totalSpent > 25000) customer.trustLevel = "Gold";
-      else if (customer.totalSpent > 10000) customer.trustLevel = "Silver";
-
-      this.saveCustomers(customers);
+    } finally {
+      this.isBatchSyncing = false;
     }
+    this.syncAction("addInvoice", invoice);
   }
 
   incrementCustomerVisit(customerId: string): number {
-    const customers = this.getCustomers();
-    const customer = customers.find((c) => c.id === customerId);
+    this.isBatchSyncing = true;
     let nextVisits = 0;
-    if (customer) {
-      customer.visits += 1;
-      nextVisits = customer.visits;
-      
-      if (customer.visits === 5) {
-        this.addNotification({
-          id: `notif-c-5-${Date.now()}`,
-          role: "Customer",
-          title: "10% Coupon Ready",
-          message: "You have completed 5 visits. Use code TAJ10OFF.",
-          date: new Date().toISOString().split("T")[0],
-          read: false
-        });
+    try {
+      const customers = this.getCustomers();
+      const customer = customers.find((c) => c.id === customerId);
+      if (customer) {
+        customer.visits += 1;
+        nextVisits = customer.visits;
+        
+        if (customer.visits === 5) {
+          this.addNotification({
+            id: `notif-c-5-${Date.now()}`,
+            role: "Customer",
+            title: "10% Coupon Ready",
+            message: "You have completed 5 visits. Use code TAJ10OFF.",
+            date: new Date().toISOString().split("T")[0],
+            read: false
+          });
+        }
+        this.saveCustomers(customers);
       }
-      this.saveCustomers(customers);
+    } finally {
+      this.isBatchSyncing = false;
     }
+    this.syncAction("saveCustomers", this.getCustomers());
     return nextVisits;
   }
 
   decrementCustomerVisit(customerId: string): number {
-    const customers = this.getCustomers();
-    const customer = customers.find((c) => c.id === customerId);
+    this.isBatchSyncing = true;
     let nextVisits = 0;
-    if (customer && customer.visits > 0) {
-      customer.visits -= 1;
-      nextVisits = customer.visits;
-      this.saveCustomers(customers);
+    try {
+      const customers = this.getCustomers();
+      const customer = customers.find((c) => c.id === customerId);
+      if (customer && customer.visits > 0) {
+        customer.visits -= 1;
+        nextVisits = customer.visits;
+        this.saveCustomers(customers);
+      }
+    } finally {
+      this.isBatchSyncing = false;
     }
+    this.syncAction("saveCustomers", this.getCustomers());
     return nextVisits;
   }
 
   resetCustomerVisits(customerId: string): void {
-    const customers = this.getCustomers();
-    const customer = customers.find((c) => c.id === customerId);
-    if (customer) {
-      customer.visits = 0;
-      this.saveCustomers(customers);
+    this.isBatchSyncing = true;
+    try {
+      const customers = this.getCustomers();
+      const customer = customers.find((c) => c.id === customerId);
+      if (customer) {
+        customer.visits = 0;
+        this.saveCustomers(customers);
+      }
+    } finally {
+      this.isBatchSyncing = false;
     }
+    this.syncAction("saveCustomers", this.getCustomers());
   }
 
   addNotification(n: Notification): void {
-    const list = this.getNotifications();
-    list.unshift(n);
-    this.saveNotifications(list);
+    this.isBatchSyncing = true;
+    try {
+      const list = this.getNotifications();
+      list.unshift(n);
+      this.saveNotifications(list);
+    } finally {
+      this.isBatchSyncing = false;
+    }
+    this.syncAction("saveNotifications", this.getNotifications());
   }
 
   addExpense(exp: Expense): void {
-    const list = this.getExpenses();
-    list.unshift(exp);
-    this.saveExpenses(list);
+    this.isBatchSyncing = true;
+    try {
+      const list = this.getExpenses();
+      list.unshift(exp);
+      this.saveExpenses(list);
+    } finally {
+      this.isBatchSyncing = false;
+    }
+    this.syncAction("saveExpenses", this.getExpenses());
   }
 
   addPurchaseOrder(po: PurchaseOrder): void {
-    const list = this.getPurchaseOrders();
-    list.unshift(po);
-    this.savePurchaseOrders(list);
+    this.isBatchSyncing = true;
+    try {
+      const list = this.getPurchaseOrders();
+      list.unshift(po);
+      this.savePurchaseOrders(list);
+    } finally {
+      this.isBatchSyncing = false;
+    }
+    this.syncAction("savePurchaseOrders", this.getPurchaseOrders());
   }
 
   // Developer mode overrides
@@ -566,9 +699,11 @@ class LocalDB {
       localStorage.removeItem("ttw_suppliers_v4");
       localStorage.removeItem("ttw_po_v4");
       localStorage.removeItem("ttw_notifications_v4");
+      localStorage.removeItem("ttw_appointments_v4");
       window.location.reload();
     }
   }
+
 
   seedSampleInventory(): void {
     this.saveTyres(initialTyres);

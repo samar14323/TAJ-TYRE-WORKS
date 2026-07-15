@@ -18,9 +18,10 @@ import {
   Menu,
   X,
   User,
-  ShieldCheck,
   Compass
 } from "lucide-react";
+import AuthGuard from "@/components/ui/AuthGuard";
+import { authService } from "@/lib/auth";
 
 interface SidebarItem {
   name: string;
@@ -37,23 +38,25 @@ export default function OwnerLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [userName, setUserName] = useState("Owner");
+  const [greeting, setGreeting] = useState("Welcome");
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Check role, redirect to login if not Owner
-    const role = localStorage.getItem("ttw_currentUserRole");
-    if (role !== "Owner") {
-      router.push("/login");
-      return;
-    }
     const name = localStorage.getItem("ttw_currentUserName") || "Mohammad Samar";
     setUserName(name);
-  }, [router]);
+
+    const hour = new Date().getHours();
+    let greet = "Welcome";
+    if (hour >= 5 && hour < 12) greet = "Good morning";
+    else if (hour >= 12 && hour < 17) greet = "Good afternoon";
+    else if (hour >= 17 && hour < 22) greet = "Good evening";
+    else greet = "Good night";
+    setGreeting(greet);
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("ttw_currentUserRole");
-    localStorage.removeItem("ttw_currentUserName");
+    authService.destroySession();
     router.push("/login");
   };
 
@@ -70,16 +73,20 @@ export default function OwnerLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-[#050507] text-[#f4f4f7] flex relative font-sans overflow-x-hidden">
+    <AuthGuard>
+      <div className="min-h-screen bg-[#050507] text-[#f4f4f7] flex flex-col md:flex-row relative font-sans overflow-x-hidden">
       {/* Dynamic Ambient Blur */}
       <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* MOBILE HEADER BAR */}
       <div className="md:hidden w-full h-16 sticky top-0 bg-[#0c0c14]/90 backdrop-blur border-b border-white/5 flex items-center justify-between px-6 z-30">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-            <span className="text-[10px] font-bold text-amber-500 font-mono">T</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img 
+            src="/logo.jpg" 
+            alt="Taj Tyre Work Logo" 
+            className="w-7 h-7 rounded-full object-cover border border-amber-500/30 shrink-0" 
+          />
           <span className="text-xs font-bold tracking-widest text-white">OWNER PORTAL</span>
         </div>
         <button
@@ -259,10 +266,10 @@ export default function OwnerLayout({
           </div>
           <div className="flex items-center gap-4">
             <span className="text-xs font-medium text-white/80">
-              Welcome, <span className="text-amber-500 font-bold">{userName}</span>
+              Welcome <span className="text-amber-500 font-bold">{userName}</span>
             </span>
             <div className="w-7 h-7 rounded-full bg-amber-500/10 border border-amber-500/35 flex items-center justify-center text-[10px] font-bold text-amber-500 font-mono">
-              S
+              {userName ? userName.charAt(0).toUpperCase() : "O"}
             </div>
           </div>
         </header>
@@ -273,5 +280,6 @@ export default function OwnerLayout({
         </div>
       </main>
     </div>
+    </AuthGuard>
   );
 }

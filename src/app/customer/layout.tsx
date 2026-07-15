@@ -19,6 +19,8 @@ import {
   User,
   Compass
 } from "lucide-react";
+import AuthGuard from "@/components/ui/AuthGuard";
+import { authService } from "@/lib/auth";
 
 interface SidebarItem {
   name: string;
@@ -46,9 +48,7 @@ export default function CustomerLayout({
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("ttw_currentUserRole");
-    localStorage.removeItem("ttw_currentUserName");
-    localStorage.removeItem("ttw_currentUserPhone");
+    authService.destroySession();
     router.push("/login");
   };
 
@@ -64,16 +64,20 @@ export default function CustomerLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-[#050507] text-[#f4f4f7] flex relative font-sans overflow-x-hidden">
+    <AuthGuard>
+      <div className="min-h-screen bg-[#050507] text-[#f4f4f7] flex flex-col md:flex-row relative font-sans overflow-x-hidden">
       {/* Dynamic Ambient Blur */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* MOBILE HEADER BAR */}
       <div className="md:hidden w-full h-16 sticky top-0 bg-[#0c0c14]/90 backdrop-blur border-b border-white/5 flex items-center justify-between px-6 z-30">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-            <span className="text-[10px] font-bold text-amber-500 font-mono">T</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img 
+            src="/logo.jpg" 
+            alt="Taj Tyre Work Logo" 
+            className="w-7 h-7 rounded-full object-cover border border-amber-500/30 shrink-0" 
+          />
           <span className="text-xs font-bold tracking-widest text-white">CUSTOMER HUB</span>
         </div>
         <button
@@ -279,5 +283,6 @@ export default function CustomerLayout({
         </div>
       </main>
     </div>
+    </AuthGuard>
   );
 }

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Database, ShieldAlert, RefreshCw, X, Download, Upload, Copy, UserCheck, Code, CheckCircle2 } from "lucide-react";
 import { dbStore } from "@/lib/store";
+import { authService } from "@/lib/auth";
 
 export default function DeveloperConsole() {
   const router = useRouter();
@@ -59,10 +60,10 @@ export default function DeveloperConsole() {
   };
 
   const forceSwitchRole = (role: "Owner" | "Customer" | "Employee" | "Dealer", name: string) => {
-    localStorage.setItem("ttw_currentUserRole", role);
-    localStorage.setItem("ttw_currentUserName", name);
+    const identifier = role === "Customer" ? "9199936181" : role === "Owner" ? "MHDSAM" : "dev-user";
+    authService.createSession(role, name, identifier);
+    
     if (role === "Customer") {
-      localStorage.setItem("ttw_currentUserPhone", "9199936181");
       router.push("/customer");
     } else if (role === "Employee") {
       localStorage.setItem("ttw_employeeType", "Mechanic");
@@ -79,7 +80,8 @@ export default function DeveloperConsole() {
     }, 1000);
   };
 
-  if (!isOpen) return null;
+  const isDev = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_ENABLE_DEVTOOLS === "true";
+  if (!isDev || !isOpen) return null;
 
   return (
     <div className="fixed inset-y-0 right-0 w-80 bg-[#0c0c14]/95 border-l border-white/10 shadow-2xl z-50 p-6 flex flex-col justify-between font-sans text-xs">

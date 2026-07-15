@@ -33,6 +33,8 @@ export default function OwnerHome() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [jobCards, setJobCards] = useState<JobCard[]>([]);
+  const [userName, setUserName] = useState("Samar");
+  const [greeting, setGreeting] = useState("Good morning");
   
   // Checklist State
   const [checklist, setChecklist] = useState<ChecklistItem[]>([
@@ -49,6 +51,17 @@ export default function OwnerHome() {
     setCustomers(dbStore.getCustomers());
     setInvoices(dbStore.getInvoices());
     setJobCards(dbStore.getJobCards());
+
+    const name = localStorage.getItem("ttw_currentUserName") || "Samar";
+    setUserName(name);
+
+    const hour = new Date().getHours();
+    let greet = "good morning";
+    if (hour >= 5 && hour < 12) greet = "good morning";
+    else if (hour >= 12 && hour < 17) greet = "good afternoon";
+    else if (hour >= 17 && hour < 22) greet = "good evening";
+    else greet = "good night";
+    setGreeting(greet);
   }, []);
 
   const lowStockTyres = tyres.filter((t) => t.quantity < 5);
@@ -112,7 +125,7 @@ export default function OwnerHome() {
           AI Business Advisor Active
         </span>
         <h2 className="text-2xl md:text-3xl font-extrabold text-white leading-tight">
-          Good Morning, <span className="text-glow text-amber-500">Samar</span>
+          {greeting} <span className="text-glow text-amber-500">{userName}</span>
         </h2>
         <div className="text-xs text-white/70 mt-2 max-w-3xl leading-relaxed space-y-1.5 font-sans">
           <p>

@@ -25,9 +25,9 @@ export default function TyreCanvas() {
 
   // Toggle explosion effect
   const toggleExplosion = () => {
-    const nextState = !exploded;
-    setExploded(nextState);
-    explodedRef.current = nextState;
+    const next = !explodedRef.current;
+    explodedRef.current = next;
+    setExploded(next);
   };
 
   useEffect(() => {
@@ -232,8 +232,15 @@ export default function TyreCanvas() {
       ctx.clearRect(0, 0, width, height);
 
       const mouse = mouseRef.current;
+      // Protect mouse coordinates from NaN or Infinity
+      if (!Number.isFinite(mouse.targetX)) mouse.targetX = 0;
+      if (!Number.isFinite(mouse.targetY)) mouse.targetY = 0;
+      
       mouse.x += (mouse.targetX - mouse.x) * 0.08;
       mouse.y += (mouse.targetY - mouse.y) * 0.08;
+
+      if (!Number.isFinite(mouse.x)) mouse.x = 0;
+      if (!Number.isFinite(mouse.y)) mouse.y = 0;
 
       if (!explodedRef.current) {
         rotationY += 0.012;
@@ -257,13 +264,32 @@ export default function TyreCanvas() {
         z: -300,
       };
 
-      const bgGlow = ctx.createRadialGradient(
+      // Safe Radial Gradient Helper
+      const createSafeRadialGradient = (
+        x1: number, y1: number, r1: number,
+        x2: number, y2: number, r2: number
+      ) => {
+        const sx1 = Number.isFinite(x1) ? x1 : width / 2;
+        const sy1 = Number.isFinite(y1) ? y1 : height / 2;
+        const sr1 = Number.isFinite(r1) && r1 >= 0 ? r1 : 0;
+        const sx2 = Number.isFinite(x2) ? x2 : width / 2;
+        const sy2 = Number.isFinite(y2) ? y2 : height / 2;
+        const sr2 = Number.isFinite(r2) && r2 >= 0 ? r2 : 1;
+        
+        const finalR1 = Math.max(0, sr1);
+        const finalR2 = Math.max(finalR1 + 0.1, sr2);
+
+        return ctx.createRadialGradient(sx1, sy1, finalR1, sx2, sy2, finalR2);
+      };
+
+      const glowRadius = Math.min(width, height) / 1.2;
+      const bgGlow = createSafeRadialGradient(
         width / 2,
         height / 2,
         50,
         width / 2,
         height / 2,
-        Math.min(width, height) / 1.2
+        Number.isFinite(glowRadius) && glowRadius > 50 ? glowRadius : 300
       );
       bgGlow.addColorStop(0, "rgba(24, 24, 37, 0.4)");
       bgGlow.addColorStop(0.5, "rgba(10, 10, 15, 0.2)");
@@ -302,18 +328,22 @@ export default function TyreCanvas() {
           continue;
         }
 
-        const scale = focalLength / (p.z + 400);
-        const px = p.x * scale + width / 2;
-        const py = p.y * scale + height / 2;
+        const denom = p.z + 400;
+        const scale = focalLength / (Number.isFinite(denom) && Math.abs(denom) > 0.1 ? denom : 400);
+        const safeScale = Number.isFinite(scale) ? scale : 1.0;
+        const px = p.x * safeScale + width / 2;
+        const py = p.y * safeScale + height / 2;
 
-        if (px >= 0 && px <= width && py >= 0 && py <= height) {
+        if (Number.isFinite(px) && Number.isFinite(py) && px >= 0 && px <= width && py >= 0 && py <= height) {
           ctx.beginPath();
-          const radG = ctx.createRadialGradient(px, py, 0, px, py, p.size);
+          const radG = createSafeRadialGradient(px, py, 0, px, py, p.size);
           radG.addColorStop(0, `rgba(${p.color}, ${p.alpha})`);
           radG.addColorStop(0.6, `rgba(${p.color}, ${p.alpha * 0.3})`);
           radG.addColorStop(1, `rgba(${p.color}, 0)`);
           ctx.fillStyle = radG;
-          ctx.arc(px, py, p.size, 0, Math.PI * 2);
+          
+          const safeRad = Number.isFinite(p.size) && p.size > 0 ? p.size : 1;
+          ctx.arc(px, py, safeRad, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -328,15 +358,18 @@ export default function TyreCanvas() {
           p.x = (Math.random() - 0.5) * 800;
         }
 
-        const scale = focalLength / (p.z + 400);
-        const px = p.x * scale + width / 2;
-        const py = p.y * scale + height / 2;
+        const denom = p.z + 400;
+        const scale = focalLength / (Number.isFinite(denom) && Math.abs(denom) > 0.1 ? denom : 400);
+        const safeScale = Number.isFinite(scale) ? scale : 1.0;
+        const px = p.x * safeScale + width / 2;
+        const py = p.y * safeScale + height / 2;
+        const dustSize = p.size * safeScale * 0.8;
 
-        if (px >= 0 && px <= width && py >= 0 && py <= height) {
+        if (Number.isFinite(px) && Number.isFinite(py) && px >= 0 && px <= width && py >= 0 && py <= height && Number.isFinite(dustSize) && dustSize > 0) {
           ctx.fillStyle = p.color;
           ctx.globalAlpha = p.alpha;
           ctx.beginPath();
-          ctx.arc(px, py, p.size * scale * 0.8, 0, Math.PI * 2);
+          ctx.arc(px, py, dustSize, 0, Math.PI * 2);
           ctx.fill();
           ctx.globalAlpha = 1.0;
         }
@@ -552,13 +585,18 @@ export default function TyreCanvas() {
         const cx = width / 2 + mouse.x * 20;
         const cy = height / 2 + mouse.y * 15;
         
-        const gradLogo = ctx.createRadialGradient(cx, cy, 0, cx, cy, 15 * centerScale);
+        const safeCx = Number.isFinite(cx) ? cx : width / 2;
+        const safeCy = Number.isFinite(cy) ? cy : height / 2;
+        const logoRadius = 15 * centerScale;
+        const safeLogoRadius = Number.isFinite(logoRadius) && logoRadius > 0 ? logoRadius : 15;
+
+        const gradLogo = createSafeRadialGradient(safeCx, safeCy, 0, safeCx, safeCy, safeLogoRadius);
         gradLogo.addColorStop(0, "rgba(245, 158, 11, 0.95)");
         gradLogo.addColorStop(0.4, "rgba(217, 119, 6, 0.8)");
         gradLogo.addColorStop(1, "rgba(5, 5, 7, 0)");
         
         ctx.fillStyle = gradLogo;
-        ctx.arc(cx, cy, 15 * centerScale, 0, Math.PI * 2);
+        ctx.arc(safeCx, safeCy, safeLogoRadius, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.fillStyle = "#ffffff";

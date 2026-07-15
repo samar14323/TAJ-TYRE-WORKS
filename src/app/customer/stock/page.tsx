@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Filter, HelpCircle, Layers, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { Search, Filter, HelpCircle, Layers, CheckCircle2, AlertTriangle, XCircle, Image as ImageIcon } from "lucide-react";
 import { dbStore, Tyre } from "@/lib/store";
 
 export default function CustomerStock() {
@@ -14,14 +14,15 @@ export default function CustomerStock() {
     setTyres(dbStore.getTyres());
   }, []);
 
-  const brands = Array.from(new Set(tyres.map((t) => t.brand)));
-  const categories = Array.from(new Set(tyres.map((t) => t.category)));
+  const brands = Array.from(new Set(tyres.map((t) => t.brand))).filter(Boolean);
+  const categories = Array.from(new Set(tyres.map((t) => t.category))).filter(Boolean);
 
   const filteredTyres = tyres.filter((t) => {
     const matchesSearch = 
       t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.size.toLowerCase().includes(searchQuery.toLowerCase());
+      t.size.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (t.description || "").toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesCategory = selectedCategory === "All" || t.category === selectedCategory;
     const matchesBrand = selectedBrand === "All" || t.brand === selectedBrand;
@@ -39,7 +40,7 @@ export default function CustomerStock() {
     } else if (qty < 5) {
       return (
         <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
-          <AlertTriangle className="w-3 h-3" /> LIMITED STOCK ({qty})
+          <AlertTriangle className="w-3 h-3" /> LIMITED ({qty})
         </span>
       );
     } else {
@@ -69,7 +70,7 @@ export default function CustomerStock() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
           <input
             type="text"
-            placeholder="Search by Tyre Name, Brand or Size (e.g. Apollo, R16)..."
+            placeholder="Search by Tyre Name, Brand, Size or Description..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-cyber-gray border border-white/5 focus:border-amber-500 rounded-lg py-2 pl-9 pr-3 text-xs text-white outline-none transition"
@@ -86,7 +87,7 @@ export default function CustomerStock() {
             <option value="All">All Categories</option>
             {categories.map((c) => (
               <option key={c} value={c}>
-                {c} Segment
+                {c}
               </option>
             ))}
           </select>
@@ -102,7 +103,7 @@ export default function CustomerStock() {
             <option value="All">All Brands</option>
             {brands.map((b) => (
               <option key={b} value={b}>
-                {b} Manufacturer
+                {b}
               </option>
             ))}
           </select>
@@ -112,13 +113,26 @@ export default function CustomerStock() {
       {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredTyres.map((tyre) => (
-          <div key={tyre.id} className="glass-panel p-5 rounded-2xl border-white/5 flex flex-col justify-between hover:border-amber-500/20 transition relative group">
-            {/* Visual background glow */}
-            <div className="absolute top-2 right-2 pointer-events-none opacity-40 group-hover:opacity-70 transition">
+          <div key={tyre.id} className="glass-panel p-5 rounded-2xl border-white/5 flex flex-col justify-between hover:border-amber-500/20 transition relative group overflow-hidden">
+            
+            {/* Stock status indicator badge */}
+            <div className="absolute top-4 right-4 pointer-events-none z-10">
               {getStatusBadge(tyre.quantity)}
             </div>
 
             <div>
+              {/* Product Image Header with glass background */}
+              <div className="w-full h-40 rounded-xl border border-white/5 overflow-hidden mb-4 bg-[#0a0a10] flex items-center justify-center relative">
+                {tyre.imageUrl ? (
+                  <img src={tyre.imageUrl} alt={tyre.name} className="object-cover w-full h-full group-hover:scale-105 transition duration-500" />
+                ) : (
+                  <div className="flex flex-col items-center gap-1.5 text-white/20">
+                    <ImageIcon className="w-8 h-8 opacity-60" />
+                    <span className="text-[9px] font-mono tracking-widest uppercase">No Image Available</span>
+                  </div>
+                )}
+              </div>
+
               <span className="text-[10px] font-mono text-amber-500 uppercase tracking-wider block mb-0.5">
                 {tyre.brand}
               </span>
@@ -129,15 +143,21 @@ export default function CustomerStock() {
                 Size Spec: {tyre.size}
               </span>
 
+              {tyre.description && (
+                <p className="text-xs text-white/40 mt-2 font-sans line-clamp-2 leading-relaxed">
+                  {tyre.description}
+                </p>
+              )}
+
               {/* Technical Specifications */}
               <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-white/5 text-[10px] font-mono text-white/60">
                 <div>
-                  <span className="text-white/40 block text-[9px] uppercase">Shelf Location</span>
-                  <span className="font-semibold text-white/80">{tyre.location}</span>
+                  <span className="text-white/40 block text-[9px] uppercase">Warranty Info</span>
+                  <span className="font-semibold text-white/80">{tyre.warranty || "N/A"}</span>
                 </div>
                 <div>
-                  <span className="text-white/40 block text-[9px] uppercase">Vehicle Segment</span>
-                  <span className="font-semibold text-white/80">{tyre.category} Fitment</span>
+                  <span className="text-white/40 block text-[9px] uppercase">Category</span>
+                  <span className="font-semibold text-white/80">{tyre.category}</span>
                 </div>
               </div>
             </div>
@@ -165,7 +185,7 @@ export default function CustomerStock() {
         {filteredTyres.length === 0 && (
           <div className="col-span-full py-12 border border-dashed border-white/5 rounded-2xl text-center text-white/40 text-xs flex flex-col items-center justify-center gap-2">
             <Layers className="w-8 h-8 opacity-45 mb-1 text-amber-500" />
-            <span>No tyres matching the search query or filter selection were found.</span>
+            <span>No products matching the search query or filter selection were found.</span>
           </div>
         )}
       </div>
