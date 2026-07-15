@@ -1,5 +1,67 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { 
+  Tyre, 
+  Customer, 
+  Vehicle, 
+  JobCard, 
+  Invoice, 
+  InvoiceItem, 
+  Expense, 
+  Supplier, 
+  PurchaseOrder, 
+  PurchaseOrderItem, 
+  Notification, 
+  Appointment, 
+  TyreCategory, 
+  VehicleFuelType, 
+  AppointmentStatus, 
+  ServiceType, 
+  PaymentStatus, 
+  OrderStatus, 
+  PaymentMethod, 
+  JobStatus, 
+  TimelineStep, 
+  ExpenseCategory 
+} from "@prisma/client";
+
+// Input types matching frontend store layout
+interface SyncCustomer extends Customer {
+  vehicles?: Vehicle[];
+}
+
+interface SyncJobCard extends JobCard {
+  timeline?: {
+    step: string;
+    timestamp: string;
+    completed: boolean;
+  }[];
+}
+
+interface SyncInvoice extends Omit<Invoice, "date"> {
+  date: string;
+  items?: Omit<InvoiceItem, "id" | "invoiceId">[];
+  splitPayments?: {
+    cashAmount: number;
+    upiAmount: number;
+    cardAmount: number;
+    creditAmount: number;
+  };
+  paymentMethod: string;
+}
+
+interface SyncPurchaseOrder extends Omit<PurchaseOrder, "date"> {
+  date: string;
+  items?: Omit<PurchaseOrderItem, "id" | "purchaseOrderId">[];
+}
+
+interface SyncNotification extends Omit<Notification, "date"> {
+  date: string;
+}
+
+interface SyncAppointment extends Omit<Appointment, "date"> {
+  date: string;
+}
 
 // GET handler: Fetches all database records, formatting dates for frontend compatibility
 export async function GET() {
@@ -173,16 +235,19 @@ export async function GET() {
         appointments,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("GET /api/store error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 
 // POST handler: Syncs local localStorage state write-through actions to Neon database via Prisma
 export async function POST(req: Request) {
   try {
-    const { action, data } = await req.json();
+    const body = await req.json() as { action: string; data: unknown };
+    const action = body.action;
+    const data = body.data;
 
     if (!action) {
       return NextResponse.json({ success: false, error: "Action is required" }, { status: 400 });
@@ -206,7 +271,8 @@ export async function POST(req: Request) {
 
     switch (action) {
       case "saveTyres": {
-        const activeBarcodes = data.map((t: any) => t.barcode).filter(Boolean);
+        const tyresData = data as Tyre[];
+        const activeBarcodes = tyresData.map((t) => t.barcode).filter(Boolean);
         await prisma.tyre.deleteMany({
           where: {
             barcode: {
@@ -215,9 +281,9 @@ export async function POST(req: Request) {
           }
         });
 
-        for (const t of data) {
+        for (const t of tyresData) {
           const cat = t.category || "Car Tyres";
-          const categoryMapped = cat.replace(/ /g, "_") as any;
+          const categoryMapped = cat.replace(/ /g, "_") as TyreCategory;
 
           await prisma.tyre.upsert({
             where: { barcode: t.barcode },
@@ -259,8 +325,9 @@ export async function POST(req: Request) {
         break;
       }
 
-      case "saveCustomers":
-        for (const c of data) {
+      case "saveCustomers": {
+        const customersData = data as SyncCustomer[];
+        for (const c of customersData) {
           await prisma.customer.upsert({
             where: { phone: c.phone },
             update: {
@@ -301,8 +368,8 @@ export async function POST(req: Request) {
           if (c.vehicles) {
             for (const v of c.vehicles) {
               const fuelMapped = ["Petrol", "Diesel", "Electric", "Hybrid", "CNG"].includes(v.fuelType)
-                ? v.fuelType
-                : "Petrol";
+                ? (v.fuelType as VehicleFuelType)
+                : VehicleFuelType.Petrol;
 
               await prisma.vehicle.upsert({
                 where: { plateNumber: v.plateNumber },
@@ -333,51 +400,57 @@ export async function POST(req: Request) {
           }
         }
         break;
+      }
 
-      case "addJobCard":
-        const jobStatusMapped = ["Waiting", "In_Progress", "Quality_Check", "Completed"].includes(data.status)
-          ? data.status
-          : "Waiting";
+      case "addJobCard": {
+        const jobCardData = data as SyncJobCard;
+        const jobStatusMapped = ["Waiting", "In_Progress", "Quality_Check", "Completed"].includes(jobCardData.status)
+          ? (jobCardData.status as JobStatus)
+          : JobStatus.Waiting;
 
         await prisma.jobCard.create({
           data: {
-            id: data.id,
-            jobId: data.jobId,
-            vehicleModel: data.vehicleModel,
-            vehicleNumber: data.vehicleNumber,
-            services: data.services,
-            mechanic: data.mechanic,
-            bay: data.bay,
+            id: jobCardData.id,
+            jobId: jobCardData.jobId,
+            vehicleModel: jobCardData.vehicleModel,
+            vehicleNumber: jobCardData.vehicleNumber,
+            services: jobCardData.services,
+            mechanic: jobCardData.mechanic,
+            bay: jobCardData.bay,
             status: jobStatusMapped,
-            estimatedFinish: data.estimatedFinish,
-            beforePhoto: data.beforePhoto || null,
-            afterPhoto: data.afterPhoto || null,
-            damagePhoto: data.damagePhoto || null,
-            customerSignature: data.customerSignature || null,
-            ownerSignature: data.ownerSignature || null,
-            odometerReading: data.odometerReading,
-            customerId: data.customerId,
+            estimatedFinish: jobCardData.estimatedFinish,
+            beforePhoto: jobCardData.beforePhoto || null,
+            afterPhoto: jobCardData.afterPhoto || null,
+            damagePhoto: jobCardData.damagePhoto || null,
+            customerSignature: jobCardData.customerSignature || null,
+            ownerSignature: jobCardData.ownerSignature || null,
+            odometerReading: jobCardData.odometerReading,
+            customerId: jobCardData.customerId,
           },
         });
 
-        for (const t of data.timeline) {
-          const stepEnum = t.step.replace(/ /g, "_");
-          await prisma.timeline.create({
-            data: {
-              step: stepEnum,
-              timestamp: t.timestamp ? new Date(t.timestamp) : new Date(),
-              completed: t.completed,
-              jobCardId: data.id,
-            },
-          });
+        if (jobCardData.timeline) {
+          for (const t of jobCardData.timeline) {
+            const stepEnum = t.step.replace(/ /g, "_") as TimelineStep;
+            await prisma.timeline.create({
+              data: {
+                step: stepEnum,
+                timestamp: t.timestamp ? new Date(t.timestamp) : new Date(),
+                completed: t.completed,
+                jobCardId: jobCardData.id,
+              },
+            });
+          }
         }
         break;
+      }
 
-      case "saveJobCards":
-        for (const jc of data) {
+      case "saveJobCards": {
+        const jobCardsData = data as SyncJobCard[];
+        for (const jc of jobCardsData) {
           const statusMapped = ["Waiting", "In_Progress", "Quality_Check", "Completed"].includes(jc.status)
-            ? jc.status
-            : "Waiting";
+            ? (jc.status as JobStatus)
+            : JobStatus.Waiting;
 
           await prisma.jobCard.upsert({
             where: { jobId: jc.jobId },
@@ -408,53 +481,59 @@ export async function POST(req: Request) {
 
           // Sync timeline steps
           await prisma.timeline.deleteMany({ where: { jobCardId: jc.id } });
-          for (const t of jc.timeline) {
-            const stepEnum = t.step.replace(/ /g, "_");
-            await prisma.timeline.create({
-              data: {
-                step: stepEnum,
-                timestamp: t.timestamp ? new Date(t.timestamp) : new Date(),
-                completed: t.completed,
-                jobCardId: jc.id,
-              },
-            });
+          if (jc.timeline) {
+            for (const t of jc.timeline) {
+              const stepEnum = t.step.replace(/ /g, "_") as TimelineStep;
+              await prisma.timeline.create({
+                data: {
+                  step: stepEnum,
+                  timestamp: t.timestamp ? new Date(t.timestamp) : new Date(),
+                  completed: t.completed,
+                  jobCardId: jc.id,
+                },
+              });
+            }
           }
         }
         break;
+      }
 
-      case "addAppointment":
-        const appStatusMapped = ["Pending", "In_Progress", "Completed", "Cancelled"].includes(data.status)
-          ? data.status
-          : "Pending";
-        const appServiceMapped = ["Fitting", "Alignment", "Balancing", "Nitrogen"].includes(data.serviceType)
-          ? data.serviceType
-          : "Alignment";
+      case "addAppointment": {
+        const appointmentData = data as SyncAppointment;
+        const appStatusMapped = ["Pending", "In_Progress", "Completed", "Cancelled"].includes(appointmentData.status)
+          ? (appointmentData.status as AppointmentStatus)
+          : AppointmentStatus.Pending;
+        const appServiceMapped = ["Fitting", "Alignment", "Balancing", "Nitrogen"].includes(appointmentData.serviceType)
+          ? (appointmentData.serviceType as ServiceType)
+          : ServiceType.Alignment;
 
         await prisma.appointment.create({
           data: {
-            id: data.id,
-            vehicleNumber: data.vehicleNumber,
+            id: appointmentData.id,
+            vehicleNumber: appointmentData.vehicleNumber,
             serviceType: appServiceMapped,
-            date: new Date(data.date),
-            timeSlot: data.timeSlot,
+            date: new Date(appointmentData.date),
+            timeSlot: appointmentData.timeSlot,
             status: appStatusMapped,
-            mechanicName: data.mechanicName || null,
-            timeTaken: data.timeTaken || null,
-            beforePhoto: data.beforePhoto || null,
-            afterPhoto: data.afterPhoto || null,
-            customerId: data.customerId,
+            mechanicName: appointmentData.mechanicName || null,
+            timeTaken: appointmentData.timeTaken || null,
+            beforePhoto: appointmentData.beforePhoto || null,
+            afterPhoto: appointmentData.afterPhoto || null,
+            customerId: appointmentData.customerId,
           },
         });
         break;
+      }
 
-      case "saveAppointments":
-        for (const a of data) {
+      case "saveAppointments": {
+        const appointmentsData = data as SyncAppointment[];
+        for (const a of appointmentsData) {
           const appStatus = ["Pending", "In_Progress", "Completed", "Cancelled"].includes(a.status)
-            ? a.status
-            : "Pending";
+            ? (a.status as AppointmentStatus)
+            : AppointmentStatus.Pending;
           const appService = ["Fitting", "Alignment", "Balancing", "Nitrogen"].includes(a.serviceType)
-            ? a.serviceType
-            : "Alignment";
+            ? (a.serviceType as ServiceType)
+            : ServiceType.Alignment;
 
           await prisma.appointment.upsert({
             where: { id: a.id },
@@ -481,61 +560,65 @@ export async function POST(req: Request) {
           });
         }
         break;
+      }
 
-      case "addInvoice":
+      case "addInvoice": {
+        const invoiceData = data as SyncInvoice;
         await prisma.$transaction(async (tx) => {
           const invoice = await tx.invoice.create({
             data: {
-              id: data.id,
-              invoiceNumber: data.invoiceNumber,
-              date: new Date(data.date),
-              subTotal: data.subTotal,
-              gstAmount: data.gstAmount,
-              discountApplied: data.discountApplied,
-              netTotal: data.netTotal,
-              ownerSignature: data.ownerSignature,
-              customerSignature: data.customerSignature,
-              gstin: data.gstin || null,
-              jobCardId: data.jobCardId || null,
-              customerId: data.customerId,
+              id: invoiceData.id,
+              invoiceNumber: invoiceData.invoiceNumber,
+              date: new Date(invoiceData.date),
+              subTotal: invoiceData.subTotal,
+              gstAmount: invoiceData.gstAmount,
+              discountApplied: invoiceData.discountApplied,
+              netTotal: invoiceData.netTotal,
+              ownerSignature: invoiceData.ownerSignature,
+              customerSignature: invoiceData.customerSignature,
+              gstin: invoiceData.gstin || null,
+              jobCardId: invoiceData.jobCardId || null,
+              customerId: invoiceData.customerId,
             },
           });
 
-          for (const item of data.items) {
-            await tx.invoiceItem.create({
-              data: {
-                tyreId: item.tyreId,
-                name: item.name,
-                brand: item.brand,
-                quantity: item.quantity,
-                price: item.price,
-                hsnCode: item.hsnCode,
-                gstRate: item.gstRate,
-                total: item.total,
-                invoiceId: invoice.id,
-              },
-            });
-
-            // Decrement tyre quantities
-            await tx.tyre.update({
-              where: { id: item.tyreId },
-              data: {
-                quantity: {
-                  decrement: item.quantity,
+          if (invoiceData.items) {
+            for (const item of invoiceData.items) {
+              await tx.invoiceItem.create({
+                data: {
+                  tyreId: item.tyreId,
+                  name: item.name,
+                  brand: item.brand,
+                  quantity: item.quantity,
+                  price: item.price,
+                  hsnCode: item.hsnCode,
+                  gstRate: item.gstRate,
+                  total: item.total,
+                  invoiceId: invoice.id,
                 },
-              },
-            });
+              });
+
+              // Decrement tyre quantities
+              await tx.tyre.update({
+                where: { id: item.tyreId },
+                data: {
+                  quantity: {
+                    decrement: item.quantity,
+                  },
+                },
+              });
+            }
           }
 
           // Create payment entries for invoice split/standard payments
-          const splits = data.splitPayments || { cashAmount: 0, upiAmount: 0, cardAmount: 0, creditAmount: 0 };
-          const method = data.paymentMethod;
+          const splits = invoiceData.splitPayments || { cashAmount: 0, upiAmount: 0, cardAmount: 0, creditAmount: 0 };
+          const method = invoiceData.paymentMethod;
 
           if (method === "Cash" || splits.cashAmount > 0) {
             await tx.payment.create({
               data: {
-                amount: splits.cashAmount > 0 ? splits.cashAmount : data.netTotal,
-                method: "Cash",
+                amount: splits.cashAmount > 0 ? splits.cashAmount : invoiceData.netTotal,
+                method: "Cash" as PaymentMethod,
                 invoiceId: invoice.id,
               },
             });
@@ -543,8 +626,8 @@ export async function POST(req: Request) {
           if (method === "UPI" || splits.upiAmount > 0) {
             await tx.payment.create({
               data: {
-                amount: splits.upiAmount > 0 ? splits.upiAmount : data.netTotal,
-                method: "UPI",
+                amount: splits.upiAmount > 0 ? splits.upiAmount : invoiceData.netTotal,
+                method: "UPI" as PaymentMethod,
                 invoiceId: invoice.id,
               },
             });
@@ -552,8 +635,8 @@ export async function POST(req: Request) {
           if (method === "Card" || splits.cardAmount > 0) {
             await tx.payment.create({
               data: {
-                amount: splits.cardAmount > 0 ? splits.cardAmount : data.netTotal,
-                method: "Card",
+                amount: splits.cardAmount > 0 ? splits.cardAmount : invoiceData.netTotal,
+                method: "Card" as PaymentMethod,
                 invoiceId: invoice.id,
               },
             });
@@ -561,35 +644,38 @@ export async function POST(req: Request) {
           if (method === "Credit" || splits.creditAmount > 0) {
             await tx.payment.create({
               data: {
-                amount: splits.creditAmount > 0 ? splits.creditAmount : data.netTotal,
-                method: "Credit",
+                amount: splits.creditAmount > 0 ? splits.creditAmount : invoiceData.netTotal,
+                method: "Credit" as PaymentMethod,
                 invoiceId: invoice.id,
               },
             });
           }
 
-          // Update customerspent values
-          const pointsEarned = Math.floor(data.netTotal * 0.05);
-          const creditAmount = method === "Credit" ? data.netTotal : 0;
+          // Update customer spent values
+          const pointsEarned = Math.floor(invoiceData.netTotal * 0.05);
+          const creditAmount = method === "Credit" ? invoiceData.netTotal : 0;
+          const itemsLength = invoiceData.items ? invoiceData.items.length : 0;
 
           await tx.customer.update({
-            where: { id: data.customerId },
+            where: { id: invoiceData.customerId },
             data: {
-              purchasesCount: { increment: data.items.length },
-              totalSpent: { increment: data.netTotal },
-              savings: { increment: data.discountApplied },
+              purchasesCount: { increment: itemsLength },
+              totalSpent: { increment: invoiceData.netTotal },
+              savings: { increment: invoiceData.discountApplied },
               rewardPoints: { increment: pointsEarned },
               outstandingAmount: { increment: creditAmount },
             },
           });
         });
         break;
+      }
 
-      case "saveExpenses":
-        for (const e of data) {
+      case "saveExpenses": {
+        const expensesData = data as (Omit<Expense, "date"> & { date: string })[];
+        for (const e of expensesData) {
           const expenseCatMapped = ["Salary", "Rent", "Electricity", "Tea", "Transport", "Internet", "Maintenance", "Other"].includes(e.category)
-            ? e.category
-            : "Other";
+            ? (e.category as ExpenseCategory)
+            : ExpenseCategory.Other;
 
           await prisma.expense.upsert({
             where: { id: e.id },
@@ -609,12 +695,14 @@ export async function POST(req: Request) {
           });
         }
         break;
+      }
 
-      case "saveSuppliers":
-        for (const s of data) {
+      case "saveSuppliers": {
+        const suppliersData = data as (Omit<Supplier, "lastPurchaseDate"> & { lastPurchaseDate?: string })[];
+        for (const s of suppliersData) {
           const paymentStatusMapped = ["Paid", "Pending", "Overdue"].includes(s.paymentStatus)
-            ? s.paymentStatus
-            : "Paid";
+            ? (s.paymentStatus as PaymentStatus)
+            : PaymentStatus.Paid;
 
           await prisma.supplier.upsert({
             where: { name: s.name },
@@ -649,12 +737,14 @@ export async function POST(req: Request) {
           });
         }
         break;
+      }
 
-      case "savePurchaseOrders":
-        for (const po of data) {
+      case "savePurchaseOrders": {
+        const poData = data as SyncPurchaseOrder[];
+        for (const po of poData) {
           const poStatusMapped = ["Draft", "Sent", "Received", "Cancelled"].includes(po.status)
-            ? po.status
-            : "Draft";
+            ? (po.status as OrderStatus)
+            : OrderStatus.Draft;
 
           await prisma.purchaseOrder.upsert({
             where: { poNumber: po.poNumber },
@@ -691,9 +781,11 @@ export async function POST(req: Request) {
           }
         }
         break;
+      }
 
-      case "saveNotifications":
-        for (const n of data) {
+      case "saveNotifications": {
+        const notificationsData = data as SyncNotification[];
+        for (const n of notificationsData) {
           await prisma.notification.upsert({
             where: { id: n.id },
             update: {
@@ -710,14 +802,16 @@ export async function POST(req: Request) {
           });
         }
         break;
+      }
 
       default:
         return NextResponse.json({ success: false, error: `Unhandled action: ${action}` }, { status: 400 });
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("POST /api/store error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
