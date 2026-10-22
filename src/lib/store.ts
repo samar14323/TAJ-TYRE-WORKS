@@ -64,6 +64,8 @@ export interface Customer {
   id: string;
   name: string;
   phone: string;
+  username?: string;
+  password?: string;
   visits: number;
   purchasesCount: number;
   totalSpent: number;

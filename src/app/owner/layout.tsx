@@ -18,7 +18,8 @@ import {
   Menu,
   X,
   User,
-  Compass
+  Compass,
+  KeyRound
 } from "lucide-react";
 import AuthGuard from "@/components/ui/AuthGuard";
 import { authService } from "@/lib/auth";
@@ -65,6 +66,7 @@ export default function OwnerLayout({
     { name: "Inventory (CRUD)", href: "/owner/inventory", icon: Layers },
     { name: "Billing Terminal", href: "/owner/billing", icon: Receipt },
     { name: "Customer Registry", href: "/owner/customers", icon: Users },
+    { name: "Recovery Requests", href: "/owner/recovery", icon: KeyRound },
     { name: "Supplier Directory", href: "/owner/suppliers", icon: Truck },
     { name: "Daily Cash Book", href: "/owner/cashbook", icon: Landmark },
     { name: "Reports Analytics", href: "/owner/reports", icon: BarChart3 },

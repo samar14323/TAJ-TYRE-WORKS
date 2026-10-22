@@ -143,27 +143,76 @@ model Dealer {
 }
 
 model Customer {
-  id                String         @id @default(uuid())
+  id                String            @id @default(uuid())
   name              String
-  phone             String         @unique
-  visits            Int            @default(0)
-  purchasesCount    Int            @default(0)
-  totalSpent        Float          @default(0.0)
-  trustLevel        String         @default("Bronze") // Bronze, Silver, Gold, Platinum
-  savings           Float          @default(0.0)
+  phone             String            @unique
+  username          String?           @unique
+  password          String?           // Hashed bcrypt password
+  visits            Int               @default(0)
+  purchasesCount    Int               @default(0)
+  totalSpent        Float             @default(0.0)
+  trustLevel        String            @default("Bronze") // Bronze, Silver, Gold, Platinum
+  savings           Float             @default(0.0)
   notes             String?
-  rewardPoints      Int            @default(0)
-  outstandingAmount Float          @default(0.0)
+  rewardPoints      Int               @default(0)
+  outstandingAmount Float             @default(0.0)
   favoriteBrand     String?
-  averageBill       Float          @default(0.0)
+  averageBill       Float             @default(0.0)
   address           String?
   city              String?
-  createdAt         DateTime       @default(now())
+  createdAt         DateTime          @default(now())
   vehicles          Vehicle[]
   appointments      Appointment[]
   invoices          Invoice[]
   jobCards          JobCard[]
   Notification      Notification[]
+  activationTokens  ActivationToken[]
+  recoveryRequests  AccountRecoveryRequest[]
+}
+
+enum RecoveryRequestType {
+  FORGOT_USERNAME
+  FORGOT_PASSWORD
+  CHANGE_USERNAME
+}
+
+enum RecoveryRequestStatus {
+  Pending
+  Approved
+  Rejected
+}
+
+model AccountRecoveryRequest {
+  id               String                @id @default(uuid())
+  requestId        String                @unique
+  type             RecoveryRequestType
+  status           RecoveryRequestStatus @default(Pending)
+  name             String
+  phone            String
+  vehicleNumber    String
+  invoiceNumber    String?
+  desiredUsername  String?
+  notes            String?
+  customerId       String?
+  customer         Customer?             @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  adminNote        String?
+  reviewedBy       String?
+  reviewedAt       DateTime?
+  resetToken       String?               @unique
+  resetTokenExpiry DateTime?
+  resetCompleted   Boolean               @default(false)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+}
+
+model ActivationToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  used       Boolean  @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
 }
 
 model Vehicle {

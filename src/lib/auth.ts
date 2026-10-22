@@ -105,6 +105,8 @@ interface OtpRegistry {
   };
 }
 
+export type RecoveryRequestType = "FORGOT_USERNAME" | "FORGOT_PASSWORD" | "CHANGE_USERNAME";
+
 class AuthServiceManager {
   // Request OTP with rate limits and locks (secure database backed)
   async requestOtp(phone: string): Promise<{ success: boolean; message: string; otp?: string }> {
@@ -173,13 +175,349 @@ class AuthServiceManager {
     }
   }
 
+  // Customer Login via Username + Password (secure server verified & rate-limited)
+  async customerLogin(usernameInput: string, passwordInput: string): Promise<{
+    success: boolean;
+    name?: string;
+    username?: string;
+    phone?: string;
+    customerId?: string;
+    error?: string;
+    needsActivation?: boolean;
+  }> {
+    try {
+      const res = await fetch("/api/auth/customer-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: usernameInput, password: passwordInput })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return {
+          success: true,
+          name: data.name,
+          username: data.username,
+          phone: data.phone,
+          customerId: data.customerId
+        };
+      } else {
+        return {
+          success: false,
+          error: data.error || "Invalid username or password.",
+          needsActivation: data.needsActivation,
+          phone: data.phone
+        };
+      }
+    } catch (e: any) {
+      console.error("Customer auth API failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
 
+  // Customer Signup (Name + Mobile + Vehicle Number - NO OTP)
+  async customerSignup(payload: { name: string; phone: string; vehicleNumber: string }): Promise<{
+    success: boolean;
+    token?: string;
+    customerId?: string;
+    error?: string;
+    alreadyRegistered?: boolean;
+    needsExistingActivation?: boolean;
+  }> {
+    try {
+      const res = await fetch("/api/auth/customer-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return {
+          success: true,
+          token: data.token,
+          customerId: data.customerId
+        };
+      } else {
+        return {
+          success: false,
+          error: data.error || "Signup failed. Please try again.",
+          alreadyRegistered: data.alreadyRegistered,
+          needsExistingActivation: data.needsExistingActivation
+        };
+      }
+    } catch (e: any) {
+      console.error("Customer signup failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Set Username & Password via Secure Token (NO OTP)
+  async setupCredentials(payload: {
+    token: string;
+    username: string;
+    password: string;
+    confirmPassword: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    name?: string;
+    username?: string;
+    phone?: string;
+    customerId?: string;
+    error?: string;
+  }> {
+    try {
+      const res = await fetch("/api/auth/setup-credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return {
+          success: true,
+          message: data.message,
+          name: data.name,
+          username: data.username,
+          phone: data.phone,
+          customerId: data.customerId
+        };
+      } else {
+        return {
+          success: false,
+          error: data.error || "Failed to configure credentials."
+        };
+      }
+    } catch (e: any) {
+      console.error("Setup credentials API failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Existing Customer Account Verification (Invoice & Plate Verification - NO OTP)
+  async verifyExistingCustomer(payload: {
+    phone: string;
+    vehicleNumber: string;
+    invoiceNumber: string;
+  }): Promise<{
+    success: boolean;
+    token?: string;
+    customerId?: string;
+    name?: string;
+    error?: string;
+    alreadyActive?: boolean;
+  }> {
+    try {
+      const res = await fetch("/api/auth/verify-existing-customer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return {
+          success: true,
+          token: data.token,
+          customerId: data.customerId,
+          name: data.name
+        };
+      } else {
+        return {
+          success: false,
+          error: data.error || "Verification failed.",
+          alreadyActive: data.alreadyActive
+        };
+      }
+    } catch (e: any) {
+      console.error("Verify existing customer API failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Submit Account Recovery Request (Forgot Username, Forgot Password, Change Username)
+  async submitRecoveryRequest(payload: {
+    type?: RecoveryRequestType;
+    requestType?: RecoveryRequestType;
+    name?: string;
+    fullName?: string;
+    phone: string;
+    vehicleNumber?: string;
+    invoiceNumber?: string;
+    desiredUsername?: string;
+    requestedUsername?: string;
+    notes?: string;
+    reason?: string;
+  }): Promise<{ success: boolean; requestId?: string; message?: string; error?: string }> {
+    try {
+      const res = await fetch("/api/auth/recovery/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return {
+          success: true,
+          requestId: data.requestId,
+          message: data.message
+        };
+      } else {
+        return {
+          success: false,
+          error: data.error || "Failed to submit recovery request."
+        };
+      }
+    } catch (e: any) {
+      console.error("Submit recovery API failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Check Recovery Request Status
+  async checkRecoveryStatus(
+    arg1: string | { requestId: string; phone: string },
+    arg2?: string
+  ): Promise<{
+    success: boolean;
+    requestId?: string;
+    type?: string;
+    requestType?: string;
+    status?: string;
+    createdAt?: string;
+    adminNote?: string;
+    username?: string;
+    verifiedUsername?: string;
+    resetToken?: string;
+    isTokenValid?: boolean;
+    resetCompleted?: boolean;
+    updatedUsername?: string;
+    requestedUsername?: string;
+    request?: any;
+    error?: string;
+  }> {
+    try {
+      const payload =
+        typeof arg1 === "object"
+          ? arg1
+          : { requestId: arg1, phone: arg2 || "" };
+
+      const res = await fetch("/api/auth/recovery/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // Normalise fields for callers
+        const normalized = {
+          ...data,
+          requestType: data.type || data.requestType,
+          verifiedUsername: data.username || data.verifiedUsername,
+          requestedUsername: data.updatedUsername || data.requestedUsername,
+          request: {
+            ...data,
+            requestType: data.type || data.requestType,
+            verifiedUsername: data.username || data.verifiedUsername,
+            requestedUsername: data.updatedUsername || data.requestedUsername,
+          }
+        };
+        return normalized;
+      }
+      return data;
+    } catch (e: any) {
+      console.error("Check recovery status API failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Complete Password Reset using Token
+  async completePasswordReset(
+    arg1: string | { token: string; password: string; confirmPassword?: string },
+    arg2?: string
+  ): Promise<{ success: boolean; message?: string; username?: string; name?: string; error?: string }> {
+    try {
+      const payload =
+        typeof arg1 === "object"
+          ? {
+              token: arg1.token,
+              password: arg1.password,
+              confirmPassword: arg1.confirmPassword || arg1.password
+            }
+          : {
+              token: arg1,
+              password: arg2 || "",
+              confirmPassword: arg2 || ""
+            };
+
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        return {
+          success: true,
+          message: data.message,
+          username: data.username,
+          name: data.name
+        };
+      } else {
+        return {
+          success: false,
+          error: data.error || "Failed to reset password."
+        };
+      }
+    } catch (e: any) {
+      console.error("Complete password reset API failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Owner: Fetch Recovery Requests
+  async getOwnerRecoveryRequests(ownerUsername: string): Promise<{ success: boolean; requests?: any[]; error?: string }> {
+    try {
+      const res = await fetch("/api/owner/recovery-requests", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-username": ownerUsername
+        }
+      });
+      const data = await res.json();
+      return data;
+    } catch (e: any) {
+      console.error("Get owner recovery requests failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Owner: Process Recovery Action (Approve / Reject)
+  async processOwnerRecoveryAction(
+    ownerUsername: string,
+    payload: { requestId: string; action: "APPROVE" | "REJECT"; adminNote?: string }
+  ): Promise<{ success: boolean; message?: string; request?: any; recoveredUsername?: string; resetToken?: string; resetUrl?: string; error?: string }> {
+    try {
+      const res = await fetch("/api/owner/recovery-requests/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-username": ownerUsername
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      return data;
+    } catch (e: any) {
+      console.error("Process owner recovery action failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
 
   // Session Handling
-  createSession(role: "Owner" | "Customer" | "Employee" | "Dealer", name: string, identifier: string): UserSession {
+  createSession(role: "Owner" | "Customer" | "Employee" | "Dealer", name: string, identifier: string, customerPhone?: string): UserSession {
     const session: UserSession = {
       username: identifier,
-      phone: role !== "Owner" ? identifier : undefined,
+      phone: customerPhone || (role !== "Owner" ? identifier : undefined),
       role,
       name,
       token: `token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -193,7 +531,8 @@ class AuthServiceManager {
       localStorage.setItem("ttw_currentUserRole", role);
       localStorage.setItem("ttw_currentUserName", name);
       if (role === "Customer") {
-        localStorage.setItem("ttw_currentUserPhone", identifier);
+        localStorage.setItem("ttw_currentUserPhone", session.phone || identifier);
+        localStorage.setItem("ttw_currentUsername", identifier);
       }
     }
 
