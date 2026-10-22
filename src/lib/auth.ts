@@ -513,6 +513,132 @@ class AuthServiceManager {
     }
   }
 
+  // Customer: Submit Profile Correction Request
+  async submitProfileCorrection(payload: {
+    field: "MOBILE_NUMBER" | "VEHICLE_NUMBER";
+    requestedValue: string;
+    reason?: string;
+  }): Promise<{ success: boolean; requestId?: string; message?: string; error?: string }> {
+    try {
+      const session = this.getCurrentSession();
+      const phone = session?.phone || (typeof window !== "undefined" ? localStorage.getItem("ttw_currentUserPhone") || "" : "");
+      const username = session?.username || (typeof window !== "undefined" ? localStorage.getItem("ttw_currentUsername") || "" : "");
+
+      const res = await fetch("/api/customer/correction-requests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-customer-phone": phone,
+          "x-customer-username": username,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      return data;
+    } catch (e: any) {
+      console.error("Submit profile correction failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Customer: Fetch own correction requests
+  async getCustomerCorrectionRequests(): Promise<{
+    success: boolean;
+    requests?: any[];
+    currentProfile?: any;
+    error?: string;
+  }> {
+    try {
+      const session = this.getCurrentSession();
+      const phone = session?.phone || (typeof window !== "undefined" ? localStorage.getItem("ttw_currentUserPhone") || "" : "");
+      const username = session?.username || (typeof window !== "undefined" ? localStorage.getItem("ttw_currentUsername") || "" : "");
+
+      const res = await fetch("/api/customer/correction-requests", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-customer-phone": phone,
+          "x-customer-username": username,
+        },
+      });
+      const data = await res.json();
+      return data;
+    } catch (e: any) {
+      console.error("Get customer correction requests failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Owner: Fetch Correction Requests
+  async getOwnerCorrectionRequests(ownerUsername: string): Promise<{
+    success: boolean;
+    requests?: any[];
+    counts?: { total: number; pending: number; approved: number; rejected: number };
+    error?: string;
+  }> {
+    try {
+      const res = await fetch("/api/owner/correction-requests", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-username": ownerUsername,
+        },
+      });
+      const data = await res.json();
+      return data;
+    } catch (e: any) {
+      console.error("Get owner correction requests failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Owner: Process Correction Action (Approve / Reject)
+  async processOwnerCorrectionAction(
+    ownerUsername: string,
+    payload: { requestId: string; action: "APPROVE" | "REJECT"; adminNote?: string }
+  ): Promise<{ success: boolean; message?: string; request?: any; error?: string }> {
+    try {
+      const res = await fetch("/api/owner/correction-requests/action", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-username": ownerUsername,
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      return data;
+    } catch (e: any) {
+      console.error("Process owner correction action failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
+  // Owner: Fetch Full Customer Dossier & Relational History
+  async getCustomerFullDossier(
+    ownerUsername: string,
+    params: { requestId?: string; customerId?: string }
+  ): Promise<{ success: boolean; customer?: any; request?: any; error?: string }> {
+    try {
+      const query = new URLSearchParams();
+      if (params.requestId) query.set("requestId", params.requestId);
+      if (params.customerId) query.set("customerId", params.customerId);
+
+      const res = await fetch(`/api/owner/correction-requests/customer-profile?${query.toString()}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-username": ownerUsername,
+        },
+      });
+      const data = await res.json();
+      return data;
+    } catch (e: any) {
+      console.error("Get customer full dossier failed:", e);
+      return { success: false, error: e.message || "Network error. Please try again." };
+    }
+  }
+
   // Session Handling
   createSession(role: "Owner" | "Customer" | "Employee" | "Dealer", name: string, identifier: string, customerPhone?: string): UserSession {
     const session: UserSession = {

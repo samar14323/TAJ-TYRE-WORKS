@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   User,
-  Compass
+  Compass,
+  UserCheck
 } from "lucide-react";
 import AuthGuard from "@/components/ui/AuthGuard";
 import { authService } from "@/lib/auth";
@@ -60,6 +61,7 @@ export default function CustomerLayout({
     { name: "Vehicle History", href: "/customer/vehicles", icon: Car },
     { name: "Warranty Center", href: "/customer/warranty", icon: ShieldCheck },
     { name: "Invoice History", href: "/customer/invoices", icon: FileText },
+    { name: "Profile Correction", href: "/customer/profile", icon: UserCheck },
     { name: "Alerts Center", href: "/customer/notifications", icon: Bell, badgeCount: 2 }
   ];
 

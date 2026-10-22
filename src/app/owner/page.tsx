@@ -17,8 +17,10 @@ import {
   Users,
   Compass,
   Star,
-  Sparkles
+  Sparkles,
+  UserCheck
 } from "lucide-react";
+import { authService } from "@/lib/auth";
 import { dbStore, Tyre, Appointment, Customer, Invoice, JobCard } from "@/lib/store";
 
 interface ChecklistItem {
@@ -35,6 +37,7 @@ export default function OwnerHome() {
   const [jobCards, setJobCards] = useState<JobCard[]>([]);
   const [userName, setUserName] = useState("Samar");
   const [greeting, setGreeting] = useState("Good morning");
+  const [pendingCorrectionsCount, setPendingCorrectionsCount] = useState<number>(0);
   
   // Checklist State
   const [checklist, setChecklist] = useState<ChecklistItem[]>([
@@ -62,6 +65,21 @@ export default function OwnerHome() {
     else if (hour >= 17 && hour < 22) greet = "good evening";
     else greet = "good night";
     setGreeting(greet);
+
+    // Fetch pending correction requests count
+    const fetchCorrectionCount = async () => {
+      try {
+        const session = authService.getCurrentSession();
+        const ownerUser = session?.username || "MHDSAM";
+        const res = await authService.getOwnerCorrectionRequests(ownerUser);
+        if (res.success && res.counts) {
+          setPendingCorrectionsCount(res.counts.pending || 0);
+        }
+      } catch (e) {
+        console.warn("Failed to fetch pending corrections for dashboard:", e);
+      }
+    };
+    fetchCorrectionCount();
   }, []);
 
   const lowStockTyres = tyres.filter((t) => t.quantity < 5);
@@ -139,6 +157,34 @@ export default function OwnerHome() {
           </p>
         </div>
       </div>
+
+      {/* Pending Correction Requests Action Banner */}
+      {pendingCorrectionsCount > 0 && (
+        <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-500 shrink-0">
+              <UserCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                Action Required: {pendingCorrectionsCount} Pending Profile Correction Request{pendingCorrectionsCount > 1 ? "s" : ""}
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500 text-black font-bold">
+                  Decision Needed
+                </span>
+              </h4>
+              <p className="text-xs text-white/60 mt-0.5">
+                Customers have submitted mobile number or vehicle plate corrections requiring your verification and approval.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/owner/corrections"
+            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs uppercase tracking-wider transition shrink-0 shadow-lg shadow-amber-500/10"
+          >
+            Review Requests
+          </Link>
+        </div>
+      )}
 
       {/* Main KPI Stats Widgets */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

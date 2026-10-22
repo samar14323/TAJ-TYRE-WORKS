@@ -387,7 +387,7 @@ function RecoveryContent() {
                     <textarea
                       rows={2}
                       placeholder="Add details to help the workshop owner quickly confirm your identity..."
-                      value={reason}
+                      value={reason ?? ""}
                       onChange={(e) => setReason(e.target.value)}
                       className="w-full bg-cyber-gray border border-white/5 focus:border-amber-500 rounded-lg p-2.5 text-xs text-white outline-none transition resize-none"
                     />

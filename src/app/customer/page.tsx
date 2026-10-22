@@ -6,23 +6,21 @@ import {
   Award, 
   CalendarDays, 
   Car, 
-  Clock, 
   Sparkles, 
   TrendingUp, 
   MessageSquare, 
-  ChevronRight,
-  Bell,
-  ArrowRight,
-  Info,
-  Phone
+  ChevronRight, 
+  Bell, 
+  ArrowRight, 
+  Info, 
+  Phone,
+  UserCheck
 } from "lucide-react";
 import { dbStore, Customer } from "@/lib/store";
 
 export default function CustomerHome() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [userName, setUserName] = useState("Client");
-  const [queueCount, setQueueCount] = useState(3);
-  const [waitTime, setWaitTime] = useState(25);
 
   useEffect(() => {
     const phone = localStorage.getItem("ttw_currentUserPhone") || "9199936181";
@@ -52,11 +50,6 @@ export default function CustomerHome() {
       };
       setCustomer(mockCustomer);
     }
-
-    // Dynamic queue estimation
-    const apts = dbStore.getAppointments().filter(a => a.status === "Pending" || a.status === "In Progress");
-    setQueueCount(apts.length > 0 ? apts.length : 3);
-    setWaitTime(apts.length > 0 ? apts.length * 10 : 25);
   }, []);
 
   const activeVehicle = customer?.vehicles[0];
@@ -80,39 +73,8 @@ export default function CustomerHome() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Active Queue & Book Actions (LHS: 7 cols) */}
+        {/* Actions & Vehicle (LHS: 7 cols) */}
         <div className="lg:col-span-7 flex flex-col gap-6">
-          {/* Live Queue Monitor Card */}
-          <div className="glass-panel p-6 rounded-2xl border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden">
-            {/* Ambient indicator green pulse */}
-            <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded text-[8px] font-mono text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-              LIVE GARAGE QUEUE
-            </div>
-
-            <div>
-              <span className="text-[9px] font-mono text-white/40 uppercase block mb-1">Workload Status</span>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Clock className="w-4 h-4 text-amber-500" />
-                Current Garage Workload
-              </h3>
-              <p className="text-xs text-white/50 mt-1 max-w-sm">
-                Check active load status before visiting to minimize wait times.
-              </p>
-            </div>
-
-            <div className="flex gap-4 shrink-0 sm:text-right mt-2 sm:mt-0 font-mono">
-              <div className="p-3 bg-white/5 border border-white/5 rounded-xl text-center min-w-[70px]">
-                <span className="text-xl font-bold text-amber-500 block">{queueCount}</span>
-                <span className="text-[9px] text-white/40 uppercase font-sans">Vehicles</span>
-              </div>
-              <div className="p-3 bg-white/5 border border-white/5 rounded-xl text-center min-w-[70px]">
-                <span className="text-xl font-bold text-amber-500 block">{waitTime}m</span>
-                <span className="text-[9px] text-white/40 uppercase font-sans">Wait Time</span>
-              </div>
-            </div>
-          </div>
-
           {/* Quick Actions grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Link 
@@ -196,6 +158,25 @@ export default function CustomerHome() {
               No primary vehicle registered. Update profile to add details.
             </div>
           )}
+
+          {/* Profile Correction Callout */}
+          <div className="p-4 rounded-xl bg-white/5 border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                <UserCheck className="w-3.5 h-3.5 text-amber-500" />
+                Need to correct your mobile or plate number?
+              </h4>
+              <p className="text-[10px] text-white/50 mt-0.5">
+                Submit a correction request for workshop verification and updates.
+              </p>
+            </div>
+            <Link
+              href="/customer/profile"
+              className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-xs font-semibold rounded-lg border border-amber-500/20 transition shrink-0"
+            >
+              Request Correction
+            </Link>
+          </div>
         </div>
 
         {/* Loyalty & Offers summary (RHS: 5 cols) */}

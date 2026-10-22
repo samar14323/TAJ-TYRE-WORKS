@@ -19,7 +19,8 @@ import {
   X,
   User,
   Compass,
-  KeyRound
+  KeyRound,
+  UserCheck
 } from "lucide-react";
 import AuthGuard from "@/components/ui/AuthGuard";
 import { authService } from "@/lib/auth";
@@ -42,6 +43,7 @@ export default function OwnerLayout({
   const [greeting, setGreeting] = useState("Welcome");
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [pendingCorrectionsCount, setPendingCorrectionsCount] = useState<number>(0);
 
   useEffect(() => {
     const name = localStorage.getItem("ttw_currentUserName") || "Mohammad Samar";
@@ -54,6 +56,21 @@ export default function OwnerLayout({
     else if (hour >= 17 && hour < 22) greet = "Good evening";
     else greet = "Good night";
     setGreeting(greet);
+
+    // Fetch pending correction requests count for visible notification
+    const fetchCounts = async () => {
+      try {
+        const session = authService.getCurrentSession();
+        const ownerUser = session?.username || "MHDSAM";
+        const res = await authService.getOwnerCorrectionRequests(ownerUser);
+        if (res.success && res.counts) {
+          setPendingCorrectionsCount(res.counts.pending || 0);
+        }
+      } catch (e) {
+        console.warn("Failed to fetch pending corrections count:", e);
+      }
+    };
+    fetchCounts();
   }, []);
 
   const handleLogout = () => {
@@ -67,11 +84,12 @@ export default function OwnerLayout({
     { name: "Billing Terminal", href: "/owner/billing", icon: Receipt },
     { name: "Customer Registry", href: "/owner/customers", icon: Users },
     { name: "Recovery Requests", href: "/owner/recovery", icon: KeyRound },
+    { name: "Correction Requests", href: "/owner/corrections", icon: UserCheck, badgeCount: pendingCorrectionsCount },
     { name: "Supplier Directory", href: "/owner/suppliers", icon: Truck },
     { name: "Daily Cash Book", href: "/owner/cashbook", icon: Landmark },
     { name: "Reports Analytics", href: "/owner/reports", icon: BarChart3 },
     { name: "Work Checklist", href: "/owner/schedule", icon: Calendar },
-    { name: "Dev Tools & Profile", href: "/owner/settings", icon: Settings }
+    { name: "Workshop Settings", href: "/owner/settings", icon: Settings }
   ];
 
   return (
@@ -141,6 +159,18 @@ export default function OwnerLayout({
                   {isSidebarHovered && (
                     <span className="truncate flex-1">{item.name}</span>
                   )}
+
+                  {isSidebarHovered && item.badgeCount && item.badgeCount > 0 ? (
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold ${
+                      isActive ? "bg-black text-amber-500" : "bg-amber-500 text-black animate-pulse"
+                    }`}>
+                      {item.badgeCount}
+                    </span>
+                  ) : null}
+
+                  {!isSidebarHovered && item.badgeCount && item.badgeCount > 0 ? (
+                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-[#050507]" />
+                  ) : null}
 
                   {/* Hover tooltip for collapsed state */}
                   {!isSidebarHovered && (
@@ -230,7 +260,12 @@ export default function OwnerLayout({
                         }`}
                       >
                         <item.icon className={`w-4 h-4 shrink-0 ${isActive ? "text-black" : "text-amber-500/80"}`} />
-                        <span>{item.name}</span>
+                        <span className="flex-1">{item.name}</span>
+                        {item.badgeCount && item.badgeCount > 0 ? (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500 text-black">
+                            {item.badgeCount}
+                          </span>
+                        ) : null}
                       </Link>
                     );
                   })}

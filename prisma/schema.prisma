@@ -168,6 +168,7 @@ model Customer {
   Notification      Notification[]
   activationTokens  ActivationToken[]
   recoveryRequests  AccountRecoveryRequest[]
+  correctionRequests ProfileCorrectionRequest[]
 }
 
 enum RecoveryRequestType {
@@ -203,6 +204,37 @@ model AccountRecoveryRequest {
   resetCompleted   Boolean               @default(false)
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
+}
+
+enum CorrectionField {
+  MOBILE_NUMBER
+  VEHICLE_NUMBER
+}
+
+enum CorrectionStatus {
+  Pending
+  Approved
+  Rejected
+}
+
+model ProfileCorrectionRequest {
+  id             String           @id @default(uuid())
+  requestId      String           @unique
+  customerId     String
+  customer       Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  field          CorrectionField
+  currentValue   String
+  requestedValue String
+  reason         String?
+  status         CorrectionStatus @default(Pending)
+  adminNote      String?
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([customerId])
+  @@index([status])
 }
 
 model ActivationToken {

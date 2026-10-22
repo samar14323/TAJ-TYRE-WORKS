@@ -20,7 +20,7 @@ export default function OwnerCustomers() {
     setInvoices(dbStore.getInvoices());
     if (list.length > 0 && !selectedCustomerId) {
       setSelectedCustomerId(list[0].id);
-      setNotesText(list[0].notes);
+      setNotesText(list[0].notes ?? "");
     }
   };
 
@@ -32,7 +32,7 @@ export default function OwnerCustomers() {
 
   const handleSelectCustomer = (c: Customer) => {
     setSelectedCustomerId(c.id);
-    setNotesText(c.notes);
+    setNotesText(c.notes ?? "");
   };
 
   const handleIncrementVisit = (cId: string) => {
@@ -249,7 +249,7 @@ export default function OwnerCustomers() {
                 <label className="text-[9px] font-mono uppercase text-white/40 block">Customer registry notes</label>
                 <textarea
                   rows={2}
-                  value={notesText}
+                  value={notesText ?? ""}
                   onChange={(e) => setNotesText(e.target.value)}
                   className="w-full bg-cyber-gray border border-white/5 rounded-lg py-2 px-3 text-xs text-white outline-none focus:border-amber-500 resize-none leading-relaxed"
                 ></textarea>

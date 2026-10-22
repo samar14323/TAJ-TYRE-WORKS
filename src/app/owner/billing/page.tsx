@@ -38,6 +38,9 @@ export default function OwnerBilling() {
   const [ownerSign, setOwnerSign] = useState("Mohammad Samar");
   const [customerSign, setCustomerSign] = useState("");
 
+  // GST Tax Optional Toggle
+  const [includeGst, setIncludeGst] = useState(true);
+
   // System states
   const [successInvoice, setSuccessInvoice] = useState<Invoice | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -50,6 +53,12 @@ export default function OwnerBilling() {
 
   useEffect(() => {
     loadData();
+    if (typeof window !== "undefined") {
+      const savedGstPref = localStorage.getItem("ttw_defaultApplyGst");
+      if (savedGstPref !== null) {
+        setIncludeGst(savedGstPref === "true");
+      }
+    }
   }, []);
 
   const handleSelectCustomer = (c: Customer) => {
@@ -143,8 +152,8 @@ export default function OwnerBilling() {
   };
 
   // Calculations
-  // Tyres have 28% GST, Services have 18% GST
-  // In India, list price is usually inclusive of GST, so we back-calculate
+  // Tyres have 28% GST, Services have 18% GST (Optional)
+  // In India, list price is usually inclusive of GST, so we back-calculate when GST is active
   // Taxable Value = Total / (1 + (GstRate / 100))
   let totalTaxableValue = 0;
   let totalGstAmount = 0;
@@ -152,11 +161,15 @@ export default function OwnerBilling() {
 
   cart.forEach((item) => {
     cartTotal += item.total;
-    const taxRate = item.gstRate;
-    const taxableVal = item.total / (1 + taxRate / 100);
-    const gstVal = item.total - taxableVal;
-    totalTaxableValue += taxableVal;
-    totalGstAmount += gstVal;
+    if (includeGst) {
+      const taxRate = item.gstRate;
+      const taxableVal = item.total / (1 + taxRate / 100);
+      const gstVal = item.total - taxableVal;
+      totalTaxableValue += taxableVal;
+      totalGstAmount += gstVal;
+    } else {
+      totalTaxableValue += item.total;
+    }
   });
 
   // Check loyalty visit discount
@@ -195,15 +208,17 @@ export default function OwnerBilling() {
         customerId: selectedCustomer.id,
         customerName: selectedCustomer.name,
         customerPhone: selectedCustomer.phone,
-        items: cart,
+        items: includeGst
+          ? cart
+          : cart.map((it) => ({ ...it, gstRate: 0 })),
         subTotal: Number(totalTaxableValue.toFixed(2)),
-        gstAmount: Number(totalGstAmount.toFixed(2)),
+        gstAmount: includeGst ? Number(totalGstAmount.toFixed(2)) : 0,
         discountApplied: discountVal,
         netTotal: netTotalVal,
         paymentMethod,
         ownerSignature: ownerSign,
         customerSignature: customerSign,
-        gstin: "07AAJFT2008T1Z8"
+        gstin: includeGst ? "07AAJFT2008T1Z8" : undefined
       };
 
       if (isSplitActive) {
@@ -489,7 +504,7 @@ export default function OwnerBilling() {
                       </td>
                       <td className="py-3 text-center font-mono">{item.quantity}</td>
                       <td className="py-3 text-right font-mono">₹{item.price.toLocaleString()}</td>
-                      <td className="py-3 text-right font-mono">{item.gstRate}%</td>
+                      <td className="py-3 text-right font-mono">{includeGst ? `${item.gstRate}%` : "0% (Exempt)"}</td>
                       <td className="py-3 text-right font-mono">₹{item.total.toLocaleString()}</td>
                       <td className="py-3 text-center">
                         <button
@@ -517,20 +532,57 @@ export default function OwnerBilling() {
         {/* Invoice Summary (RHS: 4 cols) */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           <div className="glass-panel p-5 rounded-2xl border-white/5 space-y-5">
-            <h3 className="text-xs font-mono text-amber-500 uppercase tracking-widest border-b border-white/5 pb-2">
-              Invoice Summary
-            </h3>
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <h3 className="text-xs font-mono text-amber-500 uppercase tracking-widest">
+                Invoice Summary
+              </h3>
+              <span className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 rounded border ${
+                includeGst ? "bg-amber-500/10 text-amber-500 border-amber-500/20" : "bg-white/5 text-white/40 border-white/10"
+              }`}>
+                {includeGst ? "GST Active" : "Non-GST Bill"}
+              </span>
+            </div>
+
+            {/* GST Tax Toggle */}
+            <div className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-white block">Include GST Tax</span>
+                <span className="text-[10px] text-white/40 block mt-0.5">
+                  {includeGst ? "Standard 28% Tyres / 18% Services" : "Non-GST / Tax-Exempt Bill"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIncludeGst(!includeGst)}
+                className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  includeGst ? "bg-amber-500" : "bg-white/20"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-black shadow ring-0 transition duration-200 ease-in-out ${
+                    includeGst ? "translate-x-5" : "translate-x-0 bg-white"
+                  }`}
+                />
+              </button>
+            </div>
 
             {/* Price values */}
             <div className="space-y-2.5 text-xs font-mono border-b border-white/5 pb-4">
               <div className="flex justify-between text-white/50">
-                <span>Taxable Amount:</span>
+                <span>{includeGst ? "Taxable Amount:" : "Subtotal:"}</span>
                 <span>₹{totalTaxableValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              <div className="flex justify-between text-white/50">
-                <span>GST Tax (14% CGST+14% SGST):</span>
-                <span>₹{totalGstAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
+              {includeGst ? (
+                <div className="flex justify-between text-white/50">
+                  <span>GST Tax (Combined):</span>
+                  <span>₹{totalGstAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              ) : (
+                <div className="flex justify-between text-emerald-400">
+                  <span>GST Tax:</span>
+                  <span>₹0.00 (Optional / Non-GST)</span>
+                </div>
+              )}
               {discountPercent > 0 && (
                 <div className="flex justify-between text-rose-400">
                   <span>Loyalty Discount ({discountPercent}%):</span>
@@ -727,12 +779,12 @@ export default function OwnerBilling() {
                     GT Road bypass, Delhi Crossing, India
                   </p>
                   <p className="text-[10px] text-white/50 print:text-black/60 font-mono">
-                    GSTIN: 07AAJFT2008T1Z8
+                    {successInvoice.gstAmount > 0 ? "GSTIN: 07AAJFT2008T1Z8" : "NON-GST RETAIL MEMO"}
                   </p>
                 </div>
                 <div className="text-right">
                   <span className="text-amber-500 font-mono font-bold text-xs uppercase block print:text-black">
-                    TAX INVOICE
+                    {successInvoice.gstAmount > 0 ? "TAX INVOICE" : "RETAIL INVOICE (NON-GST)"}
                   </span>
                   <span className="text-xs font-mono font-bold text-white print:text-black block mt-0.5 font-bold">
                     {successInvoice.invoiceNumber}
@@ -792,7 +844,7 @@ export default function OwnerBilling() {
                     <span>₹{successInvoice.subTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between text-white/50 print:text-black/60 border-b border-white/5 pb-2 print:border-black/10">
-                    <span>CGST + SGST (Combined):</span>
+                    <span>{successInvoice.gstAmount > 0 ? "CGST + SGST (Combined):" : "GST Tax (Exempt / ₹0):"}</span>
                     <span>₹{successInvoice.gstAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   </div>
                   {successInvoice.discountApplied > 0 && (
