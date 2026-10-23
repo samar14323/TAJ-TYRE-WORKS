@@ -46,8 +46,25 @@ export default function OwnerLayout({
   const [pendingCorrectionsCount, setPendingCorrectionsCount] = useState<number>(0);
 
   useEffect(() => {
-    const name = localStorage.getItem("ttw_currentUserName") || "Mohammad Samar";
-    setUserName(name);
+    const updateUserName = () => {
+      const name = localStorage.getItem("ttw_currentUserName") || "Mohammad Samar";
+      setUserName(name);
+    };
+    updateUserName();
+
+    // Fetch latest owner settings from PostgreSQL database
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.settings?.ownerName) {
+          setUserName(d.settings.ownerName);
+        }
+      })
+      .catch((e) => console.warn("Failed to fetch settings for owner layout:", e));
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", updateUserName);
+    }
 
     const hour = new Date().getHours();
     let greet = "Welcome";
@@ -71,6 +88,12 @@ export default function OwnerLayout({
       }
     };
     fetchCounts();
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("storage", updateUserName);
+      }
+    };
   }, []);
 
   const handleLogout = () => {

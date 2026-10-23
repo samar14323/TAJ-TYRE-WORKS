@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Search, Filter, HelpCircle, Layers, CheckCircle2, AlertTriangle, XCircle, Image as ImageIcon } from "lucide-react";
 import { dbStore, Tyre } from "@/lib/store";
+import { getWhatsAppTyreEnquiryUrl } from "@/lib/whatsapp";
 
 export default function CustomerStock() {
   const [tyres, setTyres] = useState<Tyre[]>([]);
@@ -11,7 +12,42 @@ export default function CustomerStock() {
   const [selectedBrand, setSelectedBrand] = useState<string>("All");
 
   useEffect(() => {
-    setTyres(dbStore.getTyres());
+    let isMounted = true;
+    async function loadStock() {
+      try {
+        const res = await fetch("/api/catalogue");
+        const json = await res.json();
+        if (json.success && json.data && json.data.length > 0 && isMounted) {
+          const mapped: Tyre[] = json.data.map((item: any) => ({
+            id: item.id,
+            brand: item.brand,
+            name: item.pattern,
+            category: item.category === "Bike" ? "Bike Tyres" : item.category === "Scooty" ? "Bike Tyres" : "Car Tyres",
+            size: item.size,
+            mrp: item.mrp || 0,
+            purchasePrice: 0,
+            sellingPrice: item.sellingPrice || 0,
+            quantity: item.physicalQuantity || 0,
+            location: "Workshop Ready",
+            supplier: "Authorized Distributor",
+            dateAdded: new Date().toISOString().split("T")[0],
+            barcode: item.sku || "",
+            qrCode: `qr-${item.sku || item.id}`,
+            description: item.description,
+            warranty: item.warranty,
+            imageUrl: item.imageUrl,
+            position: item.position,
+          }));
+          setTyres(mapped);
+          return;
+        }
+      } catch (e) {
+        console.warn("Could not fetch /api/catalogue, fallback to local store:", e);
+      }
+      if (isMounted) setTyres(dbStore.getTyres());
+    }
+    loadStock();
+    return () => { isMounted = false; };
   }, []);
 
   const brands = Array.from(new Set(tyres.map((t) => t.brand))).filter(Boolean);
@@ -30,23 +66,23 @@ export default function CustomerStock() {
     return matchesSearch && matchesCategory && matchesBrand;
   });
 
-  const getStatusBadge = (qty: number) => {
-    if (qty === 0) {
+  const getStatusBadge = (t: Tyre) => {
+    if (t.quantity === 0) {
       return (
-        <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded">
-          <XCircle className="w-3 h-3" /> OUT OF STOCK
+        <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-sky-400 bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded">
+          <CheckCircle2 className="w-3 h-3" /> AVAILABLE ON ORDER
         </span>
       );
-    } else if (qty < 5) {
+    } else if (t.quantity < 5) {
       return (
         <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
-          <AlertTriangle className="w-3 h-3" /> LIMITED ({qty})
+          <AlertTriangle className="w-3 h-3" /> LIMITED ({t.quantity})
         </span>
       );
     } else {
       return (
         <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
-          <CheckCircle2 className="w-3 h-3" /> AVAILABLE ({qty})
+          <CheckCircle2 className="w-3 h-3" /> AVAILABLE ({t.quantity})
         </span>
       );
     }
@@ -117,7 +153,7 @@ export default function CustomerStock() {
             
             {/* Stock status indicator badge */}
             <div className="absolute top-4 right-4 pointer-events-none z-10">
-              {getStatusBadge(tyre.quantity)}
+              {getStatusBadge(tyre)}
             </div>
 
             <div>
@@ -140,7 +176,7 @@ export default function CustomerStock() {
                 {tyre.name}
               </h3>
               <span className="text-[11px] text-white/50 block font-mono mt-1">
-                Size Spec: {tyre.size}
+                Size Spec: {tyre.size} {tyre.position ? `[${tyre.position}]` : ""}
               </span>
 
               {tyre.description && (
@@ -153,7 +189,7 @@ export default function CustomerStock() {
               <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-white/5 text-[10px] font-mono text-white/60">
                 <div>
                   <span className="text-white/40 block text-[9px] uppercase">Warranty Info</span>
-                  <span className="font-semibold text-white/80">{tyre.warranty || "N/A"}</span>
+                  <span className="font-semibold text-white/80">{tyre.warranty || "5 Years"}</span>
                 </div>
                 <div>
                   <span className="text-white/40 block text-[9px] uppercase">Category</span>
@@ -164,19 +200,25 @@ export default function CustomerStock() {
 
             <div className="flex justify-between items-center border-t border-white/5 pt-4 mt-6">
               <div>
-                <span className="text-[9px] text-white/40 block">ESTIMATED PRICE</span>
-                <span className="text-base font-mono font-bold text-white tracking-wide">
-                  ₹{tyre.sellingPrice.toLocaleString()}
+                <span className="text-[9px] text-white/40 block">PRICE & PROCUREMENT</span>
+                <span className="text-xs font-mono font-bold text-amber-400 tracking-wide">
+                  {tyre.sellingPrice > 0 ? `₹${tyre.sellingPrice.toLocaleString()}` : "Contact for Price"}
                 </span>
               </div>
 
               <a
-                href={`https://wa.me/919199936181?text=Hi%20Samar,%20I'm%20inquiring%20about%20the%20${tyre.brand}%20${tyre.name}%20(${tyre.size})%20listed%20in%20your%20inventory%20catalog.%20Please%20provide%20availability%20and%20the%20latest%20price.`}
+                href={getWhatsAppTyreEnquiryUrl({
+                  brand: tyre.brand,
+                  pattern: tyre.name,
+                  size: tyre.size,
+                  position: tyre.position || "Standard",
+                  category: tyre.category.includes("Bike") ? "Bike" : tyre.category.includes("Scoot") ? "Scooty" : "Car",
+                })}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-black text-[10px] font-bold uppercase tracking-wider transition"
+                className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black text-[10px] font-bold uppercase tracking-wider transition"
               >
-                Inquire Price
+                Inquire on WhatsApp
               </a>
             </div>
           </div>

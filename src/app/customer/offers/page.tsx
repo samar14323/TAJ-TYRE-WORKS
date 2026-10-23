@@ -15,7 +15,7 @@ interface Coupon {
 const mockCoupons: Coupon[] = [
   { code: "TAJ10OFF", title: "Bronze Loyalty Discount", requirement: "Complete 5 verified visits", discount: "10% OFF on next purchase", visitsNeeded: 5 },
   { code: "TAJ20OFF", title: "Silver Loyalty Discount", requirement: "Complete 10 verified visits", discount: "20% OFF on next purchase", visitsNeeded: 10 },
-  { code: "TAJVIPGOLD", title: "Gold VIP Loyalty Discount", requirement: "Complete 20 verified visits", discount: "25% OFF + Free wheel alignment service", visitsNeeded: 20 }
+  { code: "TAJVIPGOLD", title: "Gold VIP Loyalty Discount", requirement: "Complete 20 verified visits", discount: "25% OFF on new tyres + premium service voucher", visitsNeeded: 20 }
 ];
 
 export default function CustomerOffers() {
@@ -53,7 +53,7 @@ export default function CustomerOffers() {
             <Award className="w-10 h-10 text-amber-500 mb-2" />
             <h3 className="text-lg font-bold text-white">Your Visit Loyalty Card</h3>
             <p className="text-xs text-white/50 mt-1 mb-6">
-              Complete tyre alignments or fitting checkups at Taj Tyre Works to unlock rewards.
+              Complete tyre fitting checkups or nitrogen refills at Taj Tyre Works to unlock rewards.
             </p>
 
             {/* Visit Checkbox grid */}

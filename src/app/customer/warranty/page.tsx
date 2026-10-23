@@ -37,6 +37,7 @@ const mockWarranties: Record<string, WarrantyCard[]> = {
 export default function CustomerWarranty() {
   const [currentUserPhone, setCurrentUserPhone] = useState("");
   const [warranties, setWarranties] = useState<WarrantyCard[]>([]);
+  const [defaultWarranty, setDefaultWarranty] = useState("5 Years (Standard Tyre Models)");
   
   // Claim state
   const [selectedTyre, setSelectedTyre] = useState("");
@@ -51,6 +52,20 @@ export default function CustomerWarranty() {
     const phone = localStorage.getItem("ttw_currentUserPhone") || "9199936181";
     setCurrentUserPhone(phone);
     setWarranties(mockWarranties[phone] || []);
+
+    if (typeof window !== "undefined") {
+      const savedWarranty = localStorage.getItem("ttw_defaultWarrantyPeriod");
+      if (savedWarranty) setDefaultWarranty(savedWarranty);
+    }
+
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.settings?.defaultWarrantyPeriod) {
+          setDefaultWarranty(d.settings.defaultWarrantyPeriod);
+        }
+      })
+      .catch((e) => console.warn("Failed to fetch settings in warranty:", e));
   }, []);
 
   const handleClaim = (e: React.FormEvent) => {
@@ -79,13 +94,19 @@ export default function CustomerWarranty() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest block mb-1">
-          SECURE WARRANTY REGISTRATION
-        </span>
-        <h2 className="text-2xl font-bold text-white tracking-wide">
-          Warranty Claims Hub
-        </h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest block mb-1">
+            SECURE WARRANTY REGISTRATION
+          </span>
+          <h2 className="text-2xl font-bold text-white tracking-wide">
+            Warranty Claims Hub
+          </h2>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 text-xs font-mono text-white/70">
+          <ShieldCheck className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span>Workshop Policy: {defaultWarranty}</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

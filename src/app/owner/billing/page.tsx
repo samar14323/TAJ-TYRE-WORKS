@@ -23,7 +23,7 @@ export default function OwnerBilling() {
   const [quantity, setQuantity] = useState(1);
   
   // Custom labor / service items
-  const [serviceName, setServiceName] = useState("Wheel Alignment");
+  const [serviceName, setServiceName] = useState("Tire Tubeless Fitting Charge");
   const [serviceCost, setServiceCost] = useState(0);
 
   // Payment Options
@@ -59,6 +59,16 @@ export default function OwnerBilling() {
         setIncludeGst(savedGstPref === "true");
       }
     }
+
+    // Load dynamic GST preference from PostgreSQL database
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.settings?.defaultApplyGst !== undefined) {
+          setIncludeGst(d.settings.defaultApplyGst === "true" || d.settings.defaultApplyGst === true);
+        }
+      })
+      .catch((e) => console.warn("Could not fetch GST preference from settings:", e));
   }, []);
 
   const handleSelectCustomer = (c: Customer) => {
@@ -128,9 +138,13 @@ export default function OwnerBilling() {
     setQuantity(1);
   };
 
-  // Add Service Item (Alignment, Balancing, etc.)
+  // Add Service Item (Fitting, Nitrogen, etc.)
   const handleAddService = () => {
     if (serviceCost <= 0) return;
+    if (serviceName.includes("Wheel Alignment") || serviceName.includes("Wheel Balancing")) {
+      alert("Wheel Alignment and Wheel Balancing are currently Coming Soon.");
+      return;
+    }
 
     const newItem: InvoiceItem = {
       tyreId: `srv-${Date.now()}`,
@@ -447,11 +461,12 @@ export default function OwnerBilling() {
                     onChange={(e) => setServiceName(e.target.value)}
                     className="w-full bg-cyber-gray border border-white/5 rounded-lg py-2 px-3 text-xs text-white outline-none focus:border-amber-500 transition"
                   >
-                    <option value="Wheel Alignment (Labor)">Wheel Alignment (Labor)</option>
-                    <option value="Wheel Balancing (Labor)">Wheel Balancing (Labor)</option>
                     <option value="Tire Tubeless Fitting Charge">Tire Tubeless Fitting Charge</option>
                     <option value="Nitrogen Filling Service">Nitrogen Filling Service</option>
                     <option value="Tubeless Puncture Repair">Tubeless Puncture Repair</option>
+                    <option value="Old & New Tyres Fitment">Old & New Tyres Fitment</option>
+                    <option value="Wheel Alignment (Labor)" disabled>Wheel Alignment (Labor) — COMING SOON</option>
+                    <option value="Wheel Balancing (Labor)" disabled>Wheel Balancing (Labor) — COMING SOON</option>
                   </select>
                 </div>
 

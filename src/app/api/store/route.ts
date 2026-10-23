@@ -66,10 +66,16 @@ interface SyncAppointment extends Omit<Appointment, "date"> {
 // GET handler: Fetches all database records, formatting dates for frontend compatibility
 export async function GET() {
   try {
-    const rawTyres = await prisma.tyre.findMany();
+    const rawTyres = await prisma.tyre.findMany({
+      include: {
+        catalogue: true,
+      },
+    });
     const tyres = rawTyres.map((t) => ({
       ...t,
       category: t.category.replace(/_/g, " "),
+      position: t.position || t.catalogue?.position || "Front / Rear",
+      catalogueSku: t.catalogue?.sku || null,
     }));
 
     const rawCustomers = await prisma.customer.findMany({
@@ -272,14 +278,6 @@ export async function POST(req: Request) {
     switch (action) {
       case "saveTyres": {
         const tyresData = data as Tyre[];
-        const activeBarcodes = tyresData.map((t) => t.barcode).filter(Boolean);
-        await prisma.tyre.deleteMany({
-          where: {
-            barcode: {
-              notIn: activeBarcodes
-            }
-          }
-        });
 
         for (const t of tyresData) {
           const cat = t.category || "Car Tyres";

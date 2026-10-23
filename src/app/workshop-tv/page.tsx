@@ -129,34 +129,14 @@ export default function WorkshopTV() {
 
           <div className="flex-1 grid grid-cols-1 gap-4 overflow-y-auto pr-1 no-scrollbar">
             {/* Bay 1 Alignment */}
-            <div className={`p-4 rounded-xl border flex flex-col justify-between min-h-[100px] transition duration-300 ${
-              jobCards.some((j) => j.bay === "Bay 1 (Alignment)" && j.status !== "Completed")
-                ? "bg-blue-500/5 border-blue-500/20"
-                : "bg-white/5 border-white/5"
-            }`}>
+            <div className="p-4 rounded-xl border flex flex-col justify-between min-h-[100px] transition duration-300 bg-white/5 border-white/5">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-white">BAY 1 — 3D Computerized Alignment</span>
-                {jobCards.some((j) => j.bay === "Bay 1 (Alignment)" && j.status !== "Completed") ? (
-                  <span className="text-[8px] font-mono font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded uppercase animate-pulse">
-                    Active
-                  </span>
-                ) : (
-                  <span className="text-[8px] font-mono bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded uppercase">
-                    Available
-                  </span>
-                )}
+                <span className="text-[8px] font-mono bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded uppercase font-bold">
+                  Coming Soon
+                </span>
               </div>
-              {jobCards.some((j) => j.bay === "Bay 1 (Alignment)" && j.status !== "Completed") ? (
-                <div className="flex justify-between items-end mt-4">
-                  <div className="text-[10px] font-mono text-white/60">
-                    <p>Plate: <span className="text-white font-bold">{jobCards.find(j => j.bay === "Bay 1 (Alignment)" && j.status !== "Completed")?.vehicleNumber}</span></p>
-                    <p>Tech: {jobCards.find(j => j.bay === "Bay 1 (Alignment)" && j.status !== "Completed")?.mechanic}</p>
-                  </div>
-                  <span className="text-[10px] font-mono text-blue-400">Calibrating...</span>
-                </div>
-              ) : (
-                <p className="text-[10px] text-white/30 italic mt-4">Bay ready for alignment vehicle entry.</p>
-              )}
+              <p className="text-[10px] text-white/40 italic mt-4">Computerized alignment sensor setup in progress.</p>
             </div>
 
             {/* Bay 2 Fitting */}

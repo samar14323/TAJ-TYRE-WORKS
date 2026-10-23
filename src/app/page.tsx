@@ -28,15 +28,61 @@ import {
 import TyreCanvas from "@/components/Landing3D/TyreCanvas";
 import TyreSizeFinder from "@/components/SizeFinder/TyreSizeFinder";
 import Showroom3D from "@/components/Landing3D/Showroom3D";
-import TyreComparison from "@/components/Landing3D/TyreComparison";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState("Initializing System...");
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
-  const [gallerySliderVal, setGallerySliderVal] = useState(50); // For Before/After slider
   const [activeVideoIndex, setActiveVideoIndex] = useState<number | null>(null);
+
+  // Dynamic business configuration settings synchronized from PostgreSQL database
+  const [businessSettings, setBusinessSettings] = useState({
+    businessName: "TAJ TYRE WORKS",
+    ownerName: "Mohammad Samar",
+    workshopPhone: "+91 9199936181",
+    workshopAddress: "Shop No. 4, Main Road, Delhi / NCR",
+    workshopTimings: "09:00 AM – 09:00 PM (Daily)",
+    activeServiceBays: "4 Bays (Fitting, Nitrogen, Alignment [Coming Soon], Balancing [Coming Soon])",
+    defaultWarrantyPeriod: "5 Years (Standard Tyre Models)",
+  });
+
+  useEffect(() => {
+    // 1. Initial hydrate from local cache
+    if (typeof window !== "undefined") {
+      const savedName = localStorage.getItem("ttw_currentUserName");
+      const savedPhone = localStorage.getItem("ttw_workshopPhone");
+      const savedAddress = localStorage.getItem("ttw_workshopAddress");
+      const savedTimings = localStorage.getItem("ttw_workshopTimings");
+      const savedBays = localStorage.getItem("ttw_activeServiceBays");
+      const savedWarranty = localStorage.getItem("ttw_defaultWarrantyPeriod");
+      
+      setBusinessSettings((prev) => ({
+        ...prev,
+        ...(savedName && { ownerName: savedName }),
+        ...(savedPhone && { workshopPhone: savedPhone }),
+        ...(savedAddress && { workshopAddress: savedAddress }),
+        ...(savedTimings && { workshopTimings: savedTimings }),
+        ...(savedBays && { activeServiceBays: savedBays }),
+        ...(savedWarranty && { defaultWarrantyPeriod: savedWarranty }),
+      }));
+    }
+
+    // 2. Query authoritative database settings via /api/settings
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.settings) {
+          setBusinessSettings((prev) => ({
+            ...prev,
+            ...data.settings,
+          }));
+        }
+      })
+      .catch((err) => console.warn("Dynamic settings fetch fallback:", err));
+  }, []);
+
+  const cleanPhone = businessSettings.workshopPhone.replace(/[^0-9]/g, "");
   
   // Audio state
   const [audioEnabled, setAudioEnabled] = useState(false);
@@ -55,7 +101,7 @@ export default function Home() {
     } else if (loadingProgress < 80) {
       setLoadingMessage("Arranging Virtual Tyre Showrooms...");
     } else if (loadingProgress < 95) {
-      setLoadingMessage("Generating Dynamic Comparison Matrix...");
+      setLoadingMessage("Calibrating Two-Wheeler Catalogue...");
     } else {
       setLoadingMessage("Optimization Completed. Welcome Samar!");
     }
@@ -322,9 +368,6 @@ export default function Home() {
             <a href="#services" className="text-xs font-mono uppercase tracking-wider text-white/70 hover:text-amber-500 transition" onClick={playAudioClickFeedback}>
               Services
             </a>
-            <a href="#comparison" className="text-xs font-mono uppercase tracking-wider text-white/70 hover:text-amber-500 transition" onClick={playAudioClickFeedback}>
-              Compare
-            </a>
             <a href="#reviews" className="text-xs font-mono uppercase tracking-wider text-white/70 hover:text-amber-500 transition" onClick={playAudioClickFeedback}>
               Reviews
             </a>
@@ -516,7 +559,7 @@ export default function Home() {
               Browse Available Tyre Stock
             </h2>
             <p className="text-sm text-white/50 mt-2 max-w-xl mx-auto">
-              Hover over tyres in our interactive rack to explore compound details, tread lifespan indices, safety ratings, and estimated pricing.
+              Explore Bike Tyres for immediate purchase and Car Tyres with 1–2 days booking arrival. Filter by category or search directly by your tyre size.
             </p>
           </div>
           <Showroom3D />
@@ -534,147 +577,93 @@ export default function Home() {
               Professional Tyre Services
             </h2>
             <p className="text-sm text-white/50 mt-2 max-w-xl mx-auto">
-              Equipped with computerized machinery and calibrated sensors to guarantee optimal alignment, balancing, and tyre performance.
+              Equipped with {businessSettings.activeServiceBays} and calibrated sensors to guarantee optimal alignment, balancing, and tyre performance.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { title: "Tyre Fitting", desc: "Automated scratch-free demounting and tyre fitment with specialized lock-clamps.", duration: "15 Mins" },
-              { title: "Wheel Balancing", desc: "Digital wheel balancer calibrated to 0.5g precision. Corrects wobbles and shakes.", duration: "20 Mins" },
-              { title: "Wheel Alignment", desc: "3D Camera Computerized Alignment. Restores factory steering geometry.", duration: "30 Mins" },
-              { title: "Puncture Repair", desc: "Heavy-duty vulcanized mushroom patches for secure and long-term puncture fixes.", duration: "10 Mins" },
-              { title: "Nitrogen Filling", desc: "98% pure Nitrogen filling. Prevents pressure fluctuations and rim oxidation.", duration: "5 Mins" },
-              { title: "Tube Replacement", desc: "Thick premium butyl rubber tubes installed with strict bead sealing checks.", duration: "15 Mins" },
-              { title: "Old Tyre Exchange", desc: "Get best buy-back valuations for worn tyres exchanged on new purchases.", duration: "Instant" },
-              { title: "Emergency Service", desc: "On-site tyre service and towing dispatch within a 15km radius of the shop.", duration: "Varies" }
+              { 
+                title: "Tyre Fitting", 
+                desc: "Automated scratch-free demounting and tyre fitment with specialized lock-clamps.", 
+                duration: "15 Mins",
+                comingSoon: false 
+              },
+              { 
+                title: "Wheel Balancing", 
+                desc: "Digital wheel balancer calibrated to 0.5g precision. Corrects wobbles and shakes.", 
+                duration: "Coming Soon",
+                comingSoon: true 
+              },
+              { 
+                title: "Wheel Alignment", 
+                desc: "3D Camera Computerized Alignment. Restores factory steering geometry.", 
+                duration: "Coming Soon",
+                comingSoon: true 
+              },
+              { 
+                title: "Puncture Repair", 
+                desc: "Heavy-duty vulcanized mushroom patches for secure and long-term puncture fixes.", 
+                duration: "10 Mins",
+                comingSoon: false 
+              },
+              { 
+                title: "Nitrogen Filling", 
+                desc: "98% pure Nitrogen filling. Prevents pressure fluctuations and rim oxidation.", 
+                duration: "5 Mins",
+                comingSoon: false 
+              },
+              { 
+                title: "Tube Replacement", 
+                desc: "Thick premium butyl rubber tubes installed with strict bead sealing checks.", 
+                duration: "15 Mins",
+                comingSoon: false 
+              },
+              { 
+                title: "Old & New Tyres", 
+                desc: "Comprehensive selection of brand-new certified tyres alongside thoroughly inspected quality pre-owned tyres for all budgets.", 
+                duration: "In Stock",
+                comingSoon: false 
+              },
+              { 
+                title: "Emergency Service", 
+                desc: "On-site tyre service and towing dispatch within a 15km radius of the shop.", 
+                duration: "Varies",
+                comingSoon: false 
+              }
             ].map((srv, idx) => (
               <div 
                 key={idx} 
-                className="glass-panel p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition group relative overflow-hidden focus-within:ring-2 focus-within:ring-amber-500 outline-none"
+                className={`glass-panel p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition group relative overflow-hidden focus-within:ring-2 focus-within:ring-amber-500 outline-none ${
+                  srv.comingSoon ? "border-amber-500/20 bg-amber-500/[0.02]" : ""
+                }`}
                 tabIndex={0}
                 onKeyDown={(e) => e.key === "Enter" && playAudioClickFeedback()}
               >
                 <div className="absolute -top-12 -right-12 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl group-hover:bg-amber-500/10 transition pointer-events-none"></div>
 
                 <div>
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/5 border border-white/5 flex items-center justify-center mb-4 group-hover:border-amber-500/30 transition">
-                    <Wrench className="w-4 h-4 text-amber-500" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/5 border border-white/5 flex items-center justify-center group-hover:border-amber-500/30 transition">
+                      <Wrench className="w-4 h-4 text-amber-500" />
+                    </div>
+                    {srv.comingSoon && (
+                      <span className="text-[9px] font-mono font-bold tracking-widest uppercase text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full shadow-sm">
+                        COMING SOON
+                      </span>
+                    )}
                   </div>
                   <h4 className="text-base font-bold text-white mb-2">{srv.title}</h4>
                   <p className="text-xs text-white/50 leading-relaxed mb-4">{srv.desc}</p>
                 </div>
                 <div className="flex justify-between items-center border-t border-white/5 pt-3 mt-4 text-[10px] font-mono">
-                  <span className="text-white/40">ESTIMATED TIME</span>
-                  <span className="text-amber-500 font-semibold">{srv.duration}</span>
+                  <span className="text-white/40">{srv.comingSoon ? "AVAILABILITY" : "ESTIMATED TIME"}</span>
+                  <span className={srv.comingSoon ? "text-amber-400 font-bold uppercase" : "text-amber-500 font-semibold"}>
+                    {srv.duration}
+                  </span>
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Comparison section */}
-      <section id="comparison" className="py-20 bg-cyber-gray-dark/40 border-y border-white/5 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-xs uppercase font-mono text-amber-500 tracking-widest block mb-2">
-              Side-by-Side Assessment
-            </span>
-            <h2 className="text-3xl font-extrabold text-white">
-              Compare Before You Buy
-            </h2>
-            <p className="text-sm text-white/50 mt-2 max-w-xl mx-auto">
-              Analyze parameters of top-selling tyres side-by-side. Compare warranty terms, wet grip indexes, structural compound stiffness, and prices.
-            </p>
-          </div>
-          <TyreComparison />
-        </div>
-      </section>
-
-      {/* Interactive Before/After Gallery Slider */}
-      <section className="py-20 px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <span className="text-xs uppercase font-mono text-amber-500 tracking-widest block mb-2">
-              Precision Workmanship
-            </span>
-            <h2 className="text-3xl font-extrabold text-white">
-              Before & After Wheel Restoration
-            </h2>
-            <p className="text-sm text-white/50 mt-2 max-w-xl mx-auto">
-              Slide the slider left and right to inspect our restoration precision: worn-out tread and oxidized alloys vs fresh fitment and balanced alignment.
-            </p>
-          </div>
-
-          <div className="w-full max-w-3xl mx-auto aspect-video relative rounded-2xl overflow-hidden border border-white/10 group shadow-2xl select-none">
-            {/* After Image Container (Full screen) */}
-            <div className="absolute inset-0 bg-zinc-950 flex flex-col justify-center items-center p-8 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.06)_0%,transparent_60%)]">
-              <span className="absolute top-4 right-4 bg-emerald-500/10 text-emerald-400 font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border border-emerald-500/20">
-                AFTER RESTORATION & ALIGNMENT
-              </span>
-              <div className="w-64 h-64 rounded-full border-[12px] border-zinc-800 flex items-center justify-center shadow-2xl relative">
-                <div className="w-40 h-40 rounded-full border-4 border-amber-500/20 flex items-center justify-center font-bold text-white font-mono text-center">
-                  <div>
-                    <span className="text-sm block">APOLLO</span>
-                    <span className="text-xs text-amber-500">ALNAC 4G</span>
-                  </div>
-                </div>
-                <div className="absolute inset-0 rounded-full border-4 border-dashed border-emerald-400/40"></div>
-              </div>
-              <div className="mt-4 text-center">
-                <p className="text-xs font-bold text-white">Brand New Tread & Polished Rim</p>
-                <p className="text-[10px] text-emerald-400 font-mono mt-0.5">Laser Balanced to 0.0g</p>
-              </div>
-            </div>
-
-            {/* Before Image Container (Clipped) */}
-            <div 
-              className="absolute inset-0 bg-zinc-900 flex flex-col justify-center items-center p-8 bg-[radial-gradient(circle_at_center,rgba(239,68,68,0.06)_0%,transparent_60%)] overflow-hidden border-r border-amber-500"
-              style={{ width: `${gallerySliderVal}%` }}
-            >
-              <div className="absolute inset-0 w-[768px] h-[432px] flex flex-col justify-center items-center pointer-events-none" style={{ width: "768px" }}>
-                <span className="absolute top-4 left-4 bg-rose-500/10 text-rose-400 font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded border border-rose-500/20">
-                  BEFORE SERVICE
-                </span>
-                <div className="w-64 h-64 rounded-full border-[12px] border-zinc-900 flex items-center justify-center opacity-65 relative">
-                  <div className="w-40 h-40 rounded-full border-4 border-dashed border-zinc-800 flex items-center justify-center font-bold text-zinc-600 font-mono text-center">
-                    <div>
-                      <span className="text-sm block">WORN OUT</span>
-                      <span className="text-xs text-rose-500">12% TREAD</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-4 text-center">
-                  <p className="text-xs font-bold text-zinc-500">Uneven Tread Wear & Rust Oxidations</p>
-                  <p className="text-[10px] text-rose-400 font-mono mt-0.5">Severe Pulling Left (Alignment Bad)</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Range Input overlay */}
-            <input 
-              type="range" 
-              min="0" 
-              max="100" 
-              value={gallerySliderVal} 
-              onChange={(e) => {
-                setGallerySliderVal(Number(e.target.value));
-                playAudioClickFeedback();
-              }}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20"
-              aria-label="Before and After tyre restoration slider gauge"
-            />
-
-            {/* Slider bar thumb handle visual */}
-            <div 
-              className="absolute top-0 bottom-0 w-0.5 bg-amber-500 pointer-events-none z-10"
-              style={{ left: `${gallerySliderVal}%` }}
-            >
-              <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-[#050507] border border-amber-500 flex items-center justify-center shadow-lg">
-                <span className="text-xs font-bold text-amber-500">↔</span>
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -786,7 +775,7 @@ export default function Home() {
               { q: "How often should I align my vehicle wheels?", a: "We recommend professional computerized alignment checks every 5,000 to 7,000 kilometers, or immediately if you feel steering drift, vehicle pulling to one side, or notice uneven tyre wear patterns." },
               { q: "What are the benefits of filling Nitrogen over regular air?", a: "Nitrogen has larger molecules than standard oxygen, leaking 3-4 times slower. It reduces pressure fluctuations, runs cooler on expressways, increases fuel efficiency, and prevents rim oxidation since it is moisture-free." },
               { q: "How can I verify the warranty on my tyres purchased from Taj?", a: "Every tyre purchase is logged under your phone number in our invoice database. Customers can log in to the Customer Portal using their phone number to check remaining warranty months, claims status, and download original invoices." },
-              { q: "Do you offer buy-back value for old tyres?", a: "Yes, we evaluate old tyre conditions (casing strength, tread depth) and offer competitive buy-back deductions off the total bill for your new replacement tyres." }
+              { q: "Do you supply both old and new tyres?", a: "Yes, Taj Tyre Works offers certified brand-new tyres from leading manufacturers alongside thoroughly inspected, quality pre-owned tyres to match various vehicle specifications and budget preferences." }
             ].map((faq, i) => (
               <div 
                 key={i} 
@@ -841,7 +830,7 @@ export default function Home() {
                   <div>
                     <span className="text-[10px] text-white/50 block font-mono">PHYSICAL ADDRESS</span>
                     <span className="text-xs font-semibold text-white">
-                      Main GT Road, Near bypass crossing, Sector 5, India
+                      {businessSettings.workshopAddress}
                     </span>
                   </div>
                 </div>
@@ -849,12 +838,12 @@ export default function Home() {
                 <div className="flex gap-3.5 items-start border-t border-white/5 pt-4">
                   <Clock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                   <div>
-                    <span className="text-[10px] text-white/50 block font-mono">BUSINESS HOURS</span>
+                    <span className="text-[10px] text-white/50 block font-mono">BUSINESS HOURS & CAPACITY</span>
                     <span className="text-xs font-semibold text-white block">
-                      Monday - Saturday: 9:00 AM - 8:00 PM
+                      {businessSettings.workshopTimings}
                     </span>
-                    <span className="text-[11px] text-amber-500 font-semibold block mt-0.5">
-                      Sunday: 9:00 AM - 2:00 PM
+                    <span className="text-[11px] text-amber-500 font-semibold block mt-0.5 font-mono">
+                      {businessSettings.activeServiceBays}
                     </span>
                   </div>
                 </div>
@@ -863,8 +852,8 @@ export default function Home() {
                   <Phone className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                   <div>
                     <span className="text-[10px] text-white/50 block font-mono">CALL DIRECT</span>
-                    <a href="tel:9199936181" className="text-xs font-bold text-white hover:text-amber-500 transition block focus:ring-1 focus:ring-amber-500 outline-none">
-                      +91 9199936181
+                    <a href={`tel:${cleanPhone}`} className="text-xs font-bold text-white hover:text-amber-500 transition block focus:ring-1 focus:ring-amber-500 outline-none">
+                      {businessSettings.workshopPhone}
                     </a>
                   </div>
                 </div>
@@ -874,12 +863,12 @@ export default function Home() {
                   <div>
                     <span className="text-[10px] text-white/50 block font-mono">WHATSAPP CHAT</span>
                     <a 
-                      href="https://wa.me/919199936181" 
+                      href={`https://wa.me/${cleanPhone}`} 
                       target="_blank" 
                       rel="noopener noreferrer" 
                       className="text-xs font-bold text-white hover:text-amber-500 transition block focus:ring-1 focus:ring-amber-500 outline-none"
                     >
-                      Click to chat with Mohammad Samar
+                      Click to chat with {businessSettings.ownerName}
                     </a>
                   </div>
                 </div>
@@ -941,8 +930,8 @@ export default function Home() {
 
           <div className="flex flex-col items-center md:items-end text-center md:text-right font-mono">
             <span className="text-[10px] text-white/50 block">ADMINISTRATOR DETAILS</span>
-            <span className="text-xs font-bold text-white mt-1">Mohammad Samar (Owner)</span>
-            <span className="text-[11px] text-white/70 block mt-0.5">Mobile: +91 9199936181</span>
+            <span className="text-xs font-bold text-white mt-1">{businessSettings.ownerName} (Owner)</span>
+            <span className="text-[11px] text-white/70 block mt-0.5">Mobile: {businessSettings.workshopPhone}</span>
             <span className="text-[11px] text-amber-500 block hover:underline">
               <a href="mailto:tajtyreworks05@gmail.com">tajtyreworks05@gmail.com</a>
             </span>

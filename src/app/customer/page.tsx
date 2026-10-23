@@ -21,11 +21,29 @@ import { dbStore, Customer } from "@/lib/store";
 export default function CustomerHome() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [userName, setUserName] = useState("Client");
+  const [ownerName, setOwnerName] = useState("Mohammad Samar");
+  const [workshopPhone, setWorkshopPhone] = useState("+91 9199936181");
 
   useEffect(() => {
     const phone = localStorage.getItem("ttw_currentUserPhone") || "9199936181";
     const name = localStorage.getItem("ttw_currentUserName") || "Mohammad Samar";
     setUserName(name);
+
+    if (typeof window !== "undefined") {
+      const savedPhone = localStorage.getItem("ttw_workshopPhone");
+      if (savedPhone) setWorkshopPhone(savedPhone);
+    }
+
+    // Load dynamic owner & workshop settings from PostgreSQL
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.settings) {
+          if (d.settings.ownerName) setOwnerName(d.settings.ownerName);
+          if (d.settings.workshopPhone) setWorkshopPhone(d.settings.workshopPhone);
+        }
+      })
+      .catch((e) => console.warn("Failed to fetch settings in customer home:", e));
 
     // Look up customer details in store
     const list = dbStore.getCustomers();
@@ -87,7 +105,7 @@ export default function CustomerHome() {
               </div>
               <div>
                 <h4 className="text-sm font-bold text-white mb-0.5 group-hover:text-amber-500 transition">Book Appointment</h4>
-                <p className="text-[10px] text-white/50 leading-relaxed">Schedule alignment, balancing or nitrogen refills online.</p>
+                <p className="text-[10px] text-white/50 leading-relaxed">Schedule tyre fitting or nitrogen refills online. (Alignment & Balancing Coming Soon)</p>
               </div>
             </Link>
 
@@ -240,7 +258,7 @@ export default function CustomerHome() {
                 <div className="bg-white/5 p-3 rounded-lg border border-white/5 text-[11px] text-white/60 leading-relaxed text-left flex gap-2">
                   <Info className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                   <span>
-                    Loyalty visits are ticked and recorded by the shop manager **Samar** during tyre fitting checks at checkout.
+                    Loyalty visits are recorded by the workshop administration during tyre fitting checks at checkout.
                   </span>
                 </div>
 
@@ -260,25 +278,25 @@ export default function CustomerHome() {
             
             <div className="space-y-3">
               <a 
-                href={`https://wa.me/919199936181?text=Hi%20Samar,%20I'm%20signed%20in%20to%20my%20Customer%20Dashboard%20and%20need%20assistance%20regarding%20my%20${activeVehicle?.model || 'vehicle'}%20tyres.`}
+                href={`https://wa.me/${workshopPhone.replace(/[^0-9]/g, "")}?text=Hi%20${encodeURIComponent(ownerName)},%20I'm%20signed%20in%20to%20my%20Customer%20Dashboard%20and%20need%20assistance%20regarding%20my%20${activeVehicle?.model || 'vehicle'}%20tyres.`}
                 target="_blank" 
-                rel="noopener noreferrer"
+                rel="noopener noreferrer" 
                 className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 text-xs text-white/90 font-medium transition group"
               >
                 <div className="flex items-center gap-2.5">
                   <MessageSquare className="w-4 h-4 text-emerald-400" />
-                  <span>Consult Mohammad Samar</span>
+                  <span>Consult {ownerName}</span>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-white/40 group-hover:translate-x-1 transition" />
               </a>
               
               <a 
-                href="tel:9199936181"
+                href={`tel:${workshopPhone.replace(/[^0-9+]/g, "")}`}
                 className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/5 text-xs text-white/90 font-medium transition group"
               >
                 <div className="flex items-center gap-2.5">
                   <Phone className="w-4 h-4 text-amber-500" />
-                  <span>Call Hotline Direct</span>
+                  <span>Call Hotline ({workshopPhone})</span>
                 </div>
                 <ArrowRight className="w-3.5 h-3.5 text-white/40 group-hover:translate-x-1 transition" />
               </a>

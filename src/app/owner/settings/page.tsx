@@ -11,11 +11,14 @@ import {
   Phone, 
   MapPin, 
   CheckCircle2, 
+  AlertCircle,
   Wrench, 
   Percent, 
   KeyRound,
-  Save
+  Save,
+  RefreshCw
 } from "lucide-react";
+import { authService } from "@/lib/auth";
 
 export default function OwnerSettings() {
   const [userName, setUserName] = useState("Mohammad Samar");
@@ -24,61 +27,167 @@ export default function OwnerSettings() {
   
   // Operating Schedule & Bay Capacity editable settings
   const [workshopTimings, setWorkshopTimings] = useState("09:00 AM – 09:00 PM (Daily)");
-  const [activeServiceBays, setActiveServiceBays] = useState("4 Bays (Alignment, Fitting, Balancing, Nitrogen)");
+  const [activeServiceBays, setActiveServiceBays] = useState("4 Bays (Fitting, Nitrogen, Alignment [Coming Soon], Balancing [Coming Soon])");
   const [defaultWarrantyPeriod, setDefaultWarrantyPeriod] = useState("5 Years (Standard Tyre Models)");
 
   // Tax & Billing Preferences
   const [defaultApplyGst, setDefaultApplyGst] = useState(true);
   const [autoSmsReceipts, setAutoSmsReceipts] = useState(true);
   const [soundAlerts, setSoundAlerts] = useState(true);
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
+  // Load latest settings from PostgreSQL Database via /api/settings
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    // 1. Initial quick load from localStorage cache for zero-latency paint
+    if (typeof window !== "undefined") {
+      const savedName = localStorage.getItem("ttw_currentUserName");
+      if (savedName) setUserName(savedName);
 
-    const savedName = localStorage.getItem("ttw_currentUserName");
-    if (savedName) setUserName(savedName);
+      const savedPhone = localStorage.getItem("ttw_workshopPhone");
+      if (savedPhone) setPhone(savedPhone);
 
-    const savedPhone = localStorage.getItem("ttw_workshopPhone");
-    if (savedPhone) setPhone(savedPhone);
+      const savedAddress = localStorage.getItem("ttw_workshopAddress");
+      if (savedAddress) setAddress(savedAddress);
 
-    const savedAddress = localStorage.getItem("ttw_workshopAddress");
-    if (savedAddress) setAddress(savedAddress);
+      const savedTimings = localStorage.getItem("ttw_workshopTimings");
+      if (savedTimings) setWorkshopTimings(savedTimings);
 
-    const savedTimings = localStorage.getItem("ttw_workshopTimings");
-    if (savedTimings) setWorkshopTimings(savedTimings);
+      const savedBays = localStorage.getItem("ttw_activeServiceBays");
+      if (savedBays) setActiveServiceBays(savedBays);
 
-    const savedBays = localStorage.getItem("ttw_activeServiceBays");
-    if (savedBays) setActiveServiceBays(savedBays);
+      const savedWarranty = localStorage.getItem("ttw_defaultWarrantyPeriod");
+      if (savedWarranty) setDefaultWarrantyPeriod(savedWarranty);
 
-    const savedWarranty = localStorage.getItem("ttw_defaultWarrantyPeriod");
-    if (savedWarranty) setDefaultWarrantyPeriod(savedWarranty);
+      const savedGst = localStorage.getItem("ttw_defaultApplyGst");
+      if (savedGst !== null) setDefaultApplyGst(savedGst === "true");
 
-    const savedGst = localStorage.getItem("ttw_defaultApplyGst");
-    if (savedGst !== null) setDefaultApplyGst(savedGst === "true");
+      const savedSms = localStorage.getItem("ttw_autoSmsReceipts");
+      if (savedSms !== null) setAutoSmsReceipts(savedSms === "true");
 
-    const savedSms = localStorage.getItem("ttw_autoSmsReceipts");
-    if (savedSms !== null) setAutoSmsReceipts(savedSms === "true");
+      const savedSound = localStorage.getItem("ttw_soundAlerts");
+      if (savedSound !== null) setSoundAlerts(savedSound === "true");
+    }
 
-    const savedSound = localStorage.getItem("ttw_soundAlerts");
-    if (savedSound !== null) setSoundAlerts(savedSound === "true");
+    // 2. Fetch authoritative database settings from /api/settings
+    async function loadServerSettings() {
+      try {
+        const res = await fetch("/api/settings");
+        const data = await res.json();
+        if (data.success && data.settings) {
+          const s = data.settings;
+          if (s.ownerName) {
+            setUserName(s.ownerName);
+            localStorage.setItem("ttw_currentUserName", s.ownerName);
+          }
+          if (s.workshopPhone) {
+            setPhone(s.workshopPhone);
+            localStorage.setItem("ttw_workshopPhone", s.workshopPhone);
+          }
+          if (s.workshopAddress) {
+            setAddress(s.workshopAddress);
+            localStorage.setItem("ttw_workshopAddress", s.workshopAddress);
+          }
+          if (s.workshopTimings) {
+            setWorkshopTimings(s.workshopTimings);
+            localStorage.setItem("ttw_workshopTimings", s.workshopTimings);
+          }
+          if (s.activeServiceBays) {
+            setActiveServiceBays(s.activeServiceBays);
+            localStorage.setItem("ttw_activeServiceBays", s.activeServiceBays);
+          }
+          if (s.defaultWarrantyPeriod) {
+            setDefaultWarrantyPeriod(s.defaultWarrantyPeriod);
+            localStorage.setItem("ttw_defaultWarrantyPeriod", s.defaultWarrantyPeriod);
+          }
+          if (s.defaultApplyGst !== undefined) {
+            setDefaultApplyGst(s.defaultApplyGst === "true" || s.defaultApplyGst === true);
+            localStorage.setItem("ttw_defaultApplyGst", String(s.defaultApplyGst));
+          }
+          if (s.autoSmsReceipts !== undefined) {
+            setAutoSmsReceipts(s.autoSmsReceipts === "true" || s.autoSmsReceipts === true);
+            localStorage.setItem("ttw_autoSmsReceipts", String(s.autoSmsReceipts));
+          }
+          if (s.soundAlerts !== undefined) {
+            setSoundAlerts(s.soundAlerts === "true" || s.soundAlerts === true);
+            localStorage.setItem("ttw_soundAlerts", String(s.soundAlerts));
+          }
+        }
+      } catch (err) {
+        console.warn("Could not fetch server settings, using local cache:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadServerSettings();
   }, []);
 
-  const handleSavePreferences = (e: React.FormEvent) => {
+  const handleSavePreferences = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (typeof window !== "undefined") {
-      localStorage.setItem("ttw_currentUserName", userName);
-      localStorage.setItem("ttw_workshopPhone", phone);
-      localStorage.setItem("ttw_workshopAddress", address);
-      localStorage.setItem("ttw_workshopTimings", workshopTimings);
-      localStorage.setItem("ttw_activeServiceBays", activeServiceBays);
-      localStorage.setItem("ttw_defaultWarrantyPeriod", defaultWarrantyPeriod);
-      localStorage.setItem("ttw_defaultApplyGst", String(defaultApplyGst));
-      localStorage.setItem("ttw_autoSmsReceipts", String(autoSmsReceipts));
-      localStorage.setItem("ttw_soundAlerts", String(soundAlerts));
+    setIsSaving(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    const session = authService.getCurrentSession();
+    const ownerUsername = session?.username || "MHDSAM";
+
+    const payload = {
+      ownerName: userName,
+      workshopPhone: phone,
+      workshopAddress: address,
+      workshopTimings: workshopTimings,
+      activeServiceBays: activeServiceBays,
+      defaultWarrantyPeriod: defaultWarrantyPeriod,
+      defaultApplyGst: String(defaultApplyGst),
+      autoSmsReceipts: String(autoSmsReceipts),
+      soundAlerts: String(soundAlerts),
+    };
+
+    try {
+      // 1. Persist directly to PostgreSQL database via API
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-owner-username": ownerUsername,
+        },
+        body: JSON.stringify({ settings: payload }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to persist settings to server database.");
+      }
+
+      // 2. Synchronize local client storage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("ttw_currentUserName", userName);
+        localStorage.setItem("ttw_workshopPhone", phone);
+        localStorage.setItem("ttw_workshopAddress", address);
+        localStorage.setItem("ttw_workshopTimings", workshopTimings);
+        localStorage.setItem("ttw_activeServiceBays", activeServiceBays);
+        localStorage.setItem("ttw_defaultWarrantyPeriod", defaultWarrantyPeriod);
+        localStorage.setItem("ttw_defaultApplyGst", String(defaultApplyGst));
+        localStorage.setItem("ttw_autoSmsReceipts", String(autoSmsReceipts));
+        localStorage.setItem("ttw_soundAlerts", String(soundAlerts));
+
+        // Dispatch storage event so other components update immediately
+        window.dispatchEvent(new Event("storage"));
+      }
+
+      setSuccessMsg("Workshop schedule, bay capacity, address & billing preferences saved directly to PostgreSQL database.");
+      setTimeout(() => setSuccessMsg(""), 5000);
+    } catch (err: any) {
+      console.error("Save settings error:", err);
+      setErrorMsg(err.message || "Failed to save settings. Please verify server connection.");
+    } finally {
+      setIsSaving(false);
     }
-    setSuccessMsg("Workshop schedule, bay capacity & billing preferences saved successfully.");
-    setTimeout(() => setSuccessMsg(""), 4000);
   };
 
   return (
@@ -93,14 +202,28 @@ export default function OwnerSettings() {
           Workshop Settings
         </h2>
         <p className="text-xs text-white/55 mt-1 max-w-2xl">
-          Manage garage business information, operating schedule, service bays, warranty policies, and tax billing defaults.
+          Manage garage business information, operating schedule, service bays, warranty policies, and tax billing defaults. All changes persist automatically to the central PostgreSQL database.
         </p>
       </div>
+
+      {isLoading && (
+        <div className="p-3 rounded-xl bg-white/5 border border-white/5 text-white/50 text-xs flex gap-2 items-center">
+          <RefreshCw className="w-4 h-4 animate-spin text-amber-500" />
+          <span>Synchronizing settings with PostgreSQL database...</span>
+        </div>
+      )}
 
       {successMsg && (
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex gap-2.5 items-center leading-relaxed animate-fade-in">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{successMsg}</span>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex gap-2.5 items-center leading-relaxed animate-fade-in">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{errorMsg}</span>
         </div>
       )}
 
@@ -157,6 +280,7 @@ export default function OwnerSettings() {
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full bg-cyber-gray border border-white/10 focus:border-amber-500/60 rounded-xl py-2.5 px-3 text-xs text-white font-medium outline-none transition"
                     placeholder="+91 Phone"
+                    required
                   />
                 </div>
               </div>
@@ -175,6 +299,7 @@ export default function OwnerSettings() {
                     onChange={(e) => setAddress(e.target.value)}
                     className="w-full bg-cyber-gray border border-white/10 focus:border-amber-500/60 rounded-xl py-2.5 px-3 text-xs text-white font-medium outline-none transition"
                     placeholder="Workshop address"
+                    required
                   />
                 </div>
               </div>
@@ -212,7 +337,7 @@ export default function OwnerSettings() {
                   value={activeServiceBays}
                   onChange={(e) => setActiveServiceBays(e.target.value)}
                   className="w-full bg-cyber-gray border border-white/10 focus:border-amber-500/60 rounded-xl py-2.5 px-3 text-xs text-white font-medium outline-none transition font-mono"
-                  placeholder="e.g. 4 Bays (Alignment, Fitting, Balancing, Nitrogen)"
+                  placeholder="e.g. 4 Bays (Fitting, Nitrogen, Alignment [Coming Soon], Balancing [Coming Soon])"
                   required
                 />
               </div>
@@ -283,7 +408,7 @@ export default function OwnerSettings() {
                     <Wrench className="w-3.5 h-3.5 text-amber-500" />
                     Statutory Service GST Rate
                   </h4>
-                  <p className="text-[10px] text-white/40 mt-0.5">Wheel alignment, wheel balancing, nitrogen refills</p>
+                  <p className="text-[10px] text-white/40 mt-0.5">Tyre fitting, nitrogen refills (Alignment & balancing coming soon)</p>
                 </div>
                 <span className="text-xs font-mono font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
                   18.0%
@@ -364,10 +489,20 @@ export default function OwnerSettings() {
             <div className="pt-3 border-t border-white/5 flex items-center justify-end">
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-amber-500/10"
+                disabled={isSaving}
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-black text-xs font-bold uppercase tracking-wider rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-amber-500/10 cursor-pointer"
               >
-                <Save className="w-3.5 h-3.5" />
-                Save Settings
+                {isSaving ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5" />
+                    Save Settings
+                  </>
+                )}
               </button>
             </div>
           </div>

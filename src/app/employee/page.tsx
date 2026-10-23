@@ -72,6 +72,10 @@ export default function EmployeePage() {
   // Receptionist check-in submission
   const handleCheckInSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (serviceType === "Alignment" || serviceType === "Balancing") {
+      alert("Wheel Alignment and Wheel Balancing are currently Coming Soon. Please select Tyre Fitting or Nitrogen top-up.");
+      return;
+    }
     setIsSubmitting(true);
     setSuccessMsg("");
 
@@ -124,9 +128,7 @@ export default function EmployeePage() {
 
       // Create Job Card
       let assignedBay: any = "Bay 2 (Fitting)";
-      if (serviceType === "Alignment") assignedBay = "Bay 1 (Alignment)";
-      else if (serviceType === "Balancing") assignedBay = "Bay 3 (Balancing)";
-      else if (serviceType === "Nitrogen") assignedBay = "Bay 4 (Nitrogen)";
+      if (serviceType === "Nitrogen") assignedBay = "Bay 4 (Nitrogen)";
 
       const jobNo = `TTW-2026-${Math.floor(10000 + Math.random() * 90000)}`;
       const newJobCard: JobCard = {
@@ -352,8 +354,8 @@ export default function EmployeePage() {
                       className="w-full bg-cyber-gray border border-white/5 focus:border-amber-500 rounded-lg py-2 px-3 text-white outline-none transition"
                     >
                       <option value="Fitting">Tyre Fitting</option>
-                      <option value="Alignment">Computerized Alignment</option>
-                      <option value="Balancing">Wheel Balancing</option>
+                      <option value="Alignment" disabled>Computerized Alignment (COMING SOON)</option>
+                      <option value="Balancing" disabled>Wheel Balancing (COMING SOON)</option>
                       <option value="Nitrogen">Nitrogen top-up</option>
                     </select>
                   </div>

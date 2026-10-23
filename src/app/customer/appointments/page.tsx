@@ -8,6 +8,8 @@ export default function CustomerAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [currentUserPhone, setCurrentUserPhone] = useState("");
   const [currentUserName, setCurrentUserName] = useState("");
+  const [workshopTimings, setWorkshopTimings] = useState("09:00 AM – 09:00 PM (Daily)");
+  const [activeServiceBays, setActiveServiceBays] = useState("4 Bays (Fitting, Nitrogen, Alignment [Coming Soon], Balancing [Coming Soon])");
 
   // Form Fields
   const [vehicleNumber, setVehicleNumber] = useState("");
@@ -17,6 +19,7 @@ export default function CustomerAppointments() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const loadAppointments = () => {
     const phone = localStorage.getItem("ttw_currentUserPhone") || "9199936181";
@@ -32,12 +35,38 @@ export default function CustomerAppointments() {
 
   useEffect(() => {
     loadAppointments();
+
+    // Load initial cached settings
+    if (typeof window !== "undefined") {
+      const savedTimings = localStorage.getItem("ttw_workshopTimings");
+      if (savedTimings) setWorkshopTimings(savedTimings);
+      const savedBays = localStorage.getItem("ttw_activeServiceBays");
+      if (savedBays) setActiveServiceBays(savedBays);
+    }
+
+    // Fetch authoritative database settings
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.settings) {
+          if (d.settings.workshopTimings) setWorkshopTimings(d.settings.workshopTimings);
+          if (d.settings.activeServiceBays) setActiveServiceBays(d.settings.activeServiceBays);
+        }
+      })
+      .catch((e) => console.warn("Failed to fetch settings in appointments:", e));
   }, []);
 
   const handleBook = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    setErrorMsg("");
     setSuccessMsg("");
+
+    if (serviceType === "Alignment" || serviceType === "Balancing") {
+      setErrorMsg("Wheel Alignment and Wheel Balancing are currently Coming Soon. Please choose Tyre Fitting or Nitrogen Gas Inflation.");
+      return;
+    }
+
+    setIsSubmitting(true);
 
     setTimeout(() => {
       setIsSubmitting(false);
@@ -80,13 +109,19 @@ export default function CustomerAppointments() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest block mb-1">
-          GARAGE SERVICE SCHEDULER
-        </span>
-        <h2 className="text-2xl font-bold text-white tracking-wide">
-          Book Service Appointment
-        </h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <span className="text-[10px] font-mono text-amber-500 uppercase tracking-widest block mb-1">
+            GARAGE SERVICE SCHEDULER
+          </span>
+          <h2 className="text-2xl font-bold text-white tracking-wide">
+            Book Service Appointment
+          </h2>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 text-xs font-mono text-white/70">
+          <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span>Workshop Hours: {workshopTimings}</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -120,11 +155,28 @@ export default function CustomerAppointments() {
                   onChange={(e) => setServiceType(e.target.value as any)}
                   className="w-full bg-cyber-gray border border-white/5 focus:border-amber-500 rounded-lg py-2.5 px-3 text-xs text-white outline-none transition"
                 >
-                  <option value="Fitting">Tyre Fitting</option>
-                  <option value="Alignment">Computerized Wheel Alignment</option>
-                  <option value="Balancing">Precision Wheel Balancing</option>
-                  <option value="Nitrogen">Nitrogen Gas Inflation</option>
+                  <option value="Fitting">Tyre Fitting (Available)</option>
+                  <option value="Alignment" disabled>
+                    Wheel Alignment (COMING SOON)
+                  </option>
+                  <option value="Balancing" disabled>
+                    Wheel Balancing (COMING SOON)
+                  </option>
+                  <option value="Nitrogen">Nitrogen Gas Inflation (Available)</option>
                 </select>
+              </div>
+
+              {/* Coming Soon Notice */}
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs space-y-1.5">
+                <span className="text-[10px] font-mono text-amber-400 font-bold uppercase flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> Service Bay Capacity & Status
+                </span>
+                <p className="text-[11px] text-amber-300 font-mono leading-tight">
+                  {activeServiceBays}
+                </p>
+                <p className="text-[10px] text-white/60 leading-relaxed">
+                  <strong>Wheel Alignment</strong> and <strong>Wheel Balancing</strong> are currently marked <strong>COMING SOON</strong> while computerized calibration is underway. Online booking for these bays is temporarily disabled.
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -156,6 +208,12 @@ export default function CustomerAppointments() {
                   </select>
                 </div>
               </div>
+
+              {errorMsg && (
+                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex gap-2 items-start leading-relaxed">
+                  <span>{errorMsg}</span>
+                </div>
+              )}
 
               {successMsg && (
                 <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex gap-2 items-start leading-relaxed">
@@ -207,10 +265,15 @@ export default function CustomerAppointments() {
                 }`}></div>
 
                 <div>
-                  <div className="flex items-center gap-2 mb-1.5">
+                  <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                     <span className="text-xs font-bold text-white font-mono uppercase">
                       {apt.serviceType} fitment
                     </span>
+                    {(apt.serviceType === "Alignment" || apt.serviceType === "Balancing") && (
+                      <span className="text-[8px] font-mono uppercase px-2 py-0.5 rounded border bg-amber-500/10 text-amber-400 border-amber-500/20 font-bold">
+                        COMING SOON
+                      </span>
+                    )}
                     <span className={`text-[8px] font-mono uppercase px-2 py-0.5 rounded border ${getStatusStyle(apt.status)}`}>
                       {apt.status}
                     </span>

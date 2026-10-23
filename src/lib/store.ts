@@ -31,6 +31,9 @@ export interface Tyre {
   description?: string;
   warranty?: string;
   imageUrl?: string;
+  position?: string;
+  catalogueId?: string | null;
+  catalogueSku?: string | null;
 }
 
 
@@ -204,7 +207,8 @@ const initialTyres: Tyre[] = [
   { id: "t-3", brand: "CEAT", name: "SecuraDrive", category: "Car Tyres", size: "195/55 R16", mrp: 4900, purchasePrice: 3300, sellingPrice: 4300, quantity: 14, location: "Shelf A5", supplier: "Shree Ji Tyres", dateAdded: "2026-05-20", barcode: "8901234003", qrCode: "qr-8901234003" },
   { id: "t-4", brand: "Michelin", name: "Primacy 4 ST", category: "Car Tyres", size: "195/55 R16", mrp: 9800, purchasePrice: 7200, sellingPrice: 9100, quantity: 8, location: "Premium Section", supplier: "Michelin Imports India", dateAdded: "2026-06-02", barcode: "8901234004", qrCode: "qr-8901234004" },
   { id: "t-5", brand: "JK", name: "Jet Steel JDH5", category: "Truck Tyres", size: "10.00 R20", mrp: 21000, purchasePrice: 15500, sellingPrice: 18500, quantity: 24, location: "Heavy Stacks C", supplier: "JK Tyre Depot", dateAdded: "2026-03-15", barcode: "8901234005", qrCode: "qr-8901234005" },
-  { id: "t-6", brand: "Bridgestone", name: "Sturdo", category: "Car Tyres", size: "185/65 R15", mrp: 6200, purchasePrice: 4500, sellingPrice: 5600, quantity: 11, location: "Shelf A1", supplier: "Bridgestone North", dateAdded: "2026-06-10", barcode: "8901234006", qrCode: "qr-8901234006" }
+  { id: "t-6", brand: "Bridgestone", name: "Sturdo", category: "Car Tyres", size: "185/65 R15", mrp: 6200, purchasePrice: 4500, sellingPrice: 5600, quantity: 11, location: "Shelf A1", supplier: "Bridgestone North", dateAdded: "2026-06-10", barcode: "8901234006", qrCode: "qr-8901234006" },
+  { id: "ff5cb6b0-98c7-4b80-98d1-08a128dc6872", brand: "MRF", name: "NGP TT", category: "Bike Tyres", size: "3.00-18", mrp: 2100, purchasePrice: 1670, sellingPrice: 2000, quantity: 0, location: "Shelf A3", supplier: "MRF Regional Hub", dateAdded: "2026-04-10", barcode: "8901234001", qrCode: "qr-8901234001" }
 ];
 
 
